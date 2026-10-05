@@ -15,7 +15,7 @@ from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.datavalidation import DataValidation
 
-from faculty_requests import faculty_request
+from faculty_requests import USE, faculty_request
 
 warnings.filterwarnings("ignore")
 ROOT = Path(__file__).parent
@@ -199,6 +199,8 @@ def read_sr25_faculty():
 
 
 def use_text(r):
+    if r["row"] in USE:
+        return USE[r["row"]]
     if r["intext"] == "Internal":
         return "For internal management reporting only – this information will not be published."
     return (f"We will use this to inform the {r['pa']} section of the 2026 Sustainability Report (transition year), "

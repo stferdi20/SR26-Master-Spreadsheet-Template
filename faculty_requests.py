@@ -106,3 +106,47 @@ def faculty_request(row, sr25_ref, prev_status, prev_response, original):
     if note:
         parts.append(note)
     return "\n\n".join(parts)
+
+
+# "How SST will use this data" – SR25 style, keyed by S2030 'Qual' worksheet row.
+# 2026 is a transition year: no published traffic lights; responses also set the baseline for 2027 reporting.
+USE = {
+    8: "We will collate examples of innovative sustainability teaching and learning across faculties to inform the Exceptional education section of the 2026 Sustainability Report, and select one or two for short case studies.",
+    9: "This is a new indicator. We will use responses to establish a baseline of how (and whether) faculties are understanding student sustainability self-efficacy, and report on early pilots in the 2026 Sustainability Report. A nil response is useful to us.",
+    10: "We will combine faculty examples with central Wattle Fellowship and Melbourne Plus data to report on the range and reach of sustainability-focused experiential and co-curricular learning across the University.",
+    11: "We will use nominated alumni to develop short graduate profiles for the 2026 Sustainability Report (subject to consent), and record any faculty approaches to tracking graduate outcomes to inform how this indicator is measured from 2027.",
+    12: "We will report on examples of researchers helping solve the University's own operational sustainability challenges, alongside CLLAP projects reported by CI&S, and share them with operational teams to identify further collaboration.",
+    13: "We will map existing academic–professional collaboration mechanisms across faculties to establish a baseline for this new indicator and identify models other faculties could adopt.",
+    14: "We will use your assessment to describe the quality and continuity of research–operations collaboration in the 2026 report, and as baseline evidence for the interim target status assessment from 2027.",
+    15: "We will use any feedback to understand whether collaboration mechanisms are working and to inform improvements. Where none has been collected, this helps us plan how to gather feedback from 2027.",
+    16: "We will collate research impact examples across faculties to show the breadth of sustainability-related research impact in the Transformational research section of the 2026 Sustainability Report, complementing University-wide metrics from MRE.",
+    18: "We will use institutional research output data (e.g. SDG-mapped publications via SciVal) to provide the University-wide quantitative picture of sustainability-related research in the 2026 Sustainability Report.",
+    19: "We will select the strongest examples to develop as full research case studies for the 2026 Sustainability Report (we may contact you for more detail and images).",
+    20: "We will report on how sustainability is being built into research systems and support across the University, and use responses to establish a baseline for this new target.",
+    21: "We will report on ways the University is making research practices more sustainable in the 2026 Sustainability Report, and share practical examples (e.g. green labs) across faculties.",
+    22: "We will use any survey or capability data to describe changes in sustainability-related research culture. Where no evidence exists, this helps us plan University-wide measurement (e.g. staff and graduate researcher surveys) from 2027.",
+    23: "We will use faculty self-assessments to identify strengths, gaps and priority actions in embedding sustainable research practices, to inform internal management reporting and the Transformational research working group.",
+    26: "For internal planning: we will record the status of the planned review of Climate Leadership targets (due by 2030).",
+    27: "We will use these examples to show how the University communicates climate research and learning to external audiences, and as an input to the institutional decarbonisation research and education mapping due by 2028.",
+    29: "We will report on the University's ongoing climate communications in the Climate leadership section of the 2026 Sustainability Report, alongside contributions from Melbourne Climate Futures and the Melbourne Energy Institute.",
+    30: "We will report the University's climate-change resilience maturity rating, key gaps and priority actions in the 2026 Sustainability Report (building on the Climate Change Preparedness Framework assessment reported in 2025).",
+    32: "For internal management reporting only: we will track the size, health and diversity of remnant vegetation at Dookie and Creswick. This information will not be published.",
+    33: "We will report progress on developing the biodiversity quality measurement framework, which will underpin how the biodiversity target is assessed from 2027.",
+    34: "We will report the definition and baseline for campus ecological connectivity in the 2026 Sustainability Report, to support future tracking against the biodiversity target.",
+    35: "We will report on the baseline nature footprint of the University's supply chain in the Nature and biodiversity section of the 2026 Sustainability Report.",
+    36: "We will describe the framework for monitoring supply-chain nature impacts, and use it to plan how this target is reported from 2027.",
+    37: "We will report on the high-risk procurement categories or suppliers prioritised for nature-impact management, and related actions, in the 2026 Sustainability Report.",
+    38: "We will provide a high-level overview of AI's estimated operational impacts and opportunities in 2026, ahead of more detailed measurement from 2027.",
+    39: "We will select examples of sustainability and AI-related education, research and collaboration as case studies for the new Responsible AI section of the 2026 Sustainability Report.",
+    40: "We will use case study evidence to show how sustainability maturity is increasing in estate and infrastructure planning, development and operations in the 2026 Sustainability Report.",
+    41: "We will use estimated sustainability impacts of the capital plan to inform progress reporting towards the emissions reduction target and other priority areas (to the extent information is available).",
+    42: "We will report on sustainability activities and impacts of major estate and infrastructure projects and programs in the Estate and infrastructure section of the 2026 Sustainability Report.",
+    43: "We will report on how Indigenous approaches to sustainability are informing estate planning and development, with examples where permission to share is confirmed.",
+    46: "We will use case studies (and any maturity score or training data) to show improvement in responsible procurement processes and systems in the 2026 Sustainability Report.",
+    49: "We will draw on the annual Modern Slavery Statement and case studies to report on the University's approach to modern slavery and human rights risks (timing to be aligned with the Statement).",
+    51: "We will report on sustainability-related investment portfolio metrics and the University's compliance with related obligations (e.g. UNPRI) in the Responsible investments section of the 2026 Sustainability Report.",
+    52: "We will report on the ways Indigenous knowledges inform sustainability activities across the University, and develop selected examples into case studies with appropriate permissions.",
+    53: "We will share examples of living labs from across the University in the 2026 Sustainability Report, alongside CLLAP projects reported by CI&S.",
+    54: "We will report on internal engagement and partnerships contributing to Sustainability 2030 outcomes, and update our record of sustainability-focused communities of practice and contacts across the University.",
+    55: "We will report on how sustainability is integrated into governance and decision-making across faculties and portfolios, and use responses as a baseline for the governance enabler from 2027.",
+}
