@@ -14,6 +14,7 @@ from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.datavalidation import DataValidation
+from openpyxl.worksheet.hyperlink import Hyperlink
 
 from faculty_requests import USE, faculty_request
 
@@ -187,6 +188,70 @@ def read_quan(qual_by_row):
     return out
 
 
+# SR25 master tab/section holding each unit's end-2025 responses (None = no SR25 equivalent)
+SR25_SOURCES = {
+    "CI&S": ("CD", None),
+    "CFOG": ("CFOG", None),
+    "ESG": ("Business Services", None),
+    "CIOG": None,  # AI not requested in SR25
+    "MRE": ("Chancellery", "Research and Enterprise"),
+    "L&R": ("Legal and Risk", None),
+}
+# Central units: S2030 Qual row -> closest SR25 (SP2030) ref answered by that unit
+CENTRAL_SR25_MAP = {
+    "CI&S": {30: "8a(i)", 53: "2a", 12: "5a(ii)", 51: "12b(i)", 49: "11c(ii)", 40: "7b"},
+    "CFOG": {49: "11c(i)", 46: "11c(iii)", 51: "12b(i)", 47: "11d", 48: "11d"},
+    "ESG": {32: "9a(ii)", 33: "9a(i)", 34: "9b(i)", 54: "7a", 53: "2a"},
+    "CIOG": {},
+    "MRE": {12: "5a(i)", 16: "5b(ii)", 18: "5b(iii)", 20: "5c(i)", 21: "5c(ii)", 53: "2a"},
+    "L&R": {30: "8a(i)"},
+}
+SR25_COLS = {"status": "Confirm end-20", "opt1": "OPTION 1", "opt2": "OPTION 2", "support": "Supporting inf"}
+
+
+def read_sr25_tab(tab, section=None):
+    """[(section name, [row dict])] for one SR25 master tab, located by header text (layouts differ per tab)."""
+    ws = load_workbook(SRC / "SR25_master.xlsx", data_only=True)[tab]
+    out, cur, cmap = [], None, {}
+    for r in range(1, ws.max_row + 1):
+        b, c = clean(ws.cell(r, 2).value).strip(), clean(ws.cell(r, 3).value).strip()
+        if re.fullmatch(r"\d\.\d(\.\d)?", b) and c:
+            cur = (c, []); out.append(cur); continue
+        if b == "Ref":
+            hdr = {clean(ws.cell(r, k).value): k for k in range(2, ws.max_column + 1) if ws.cell(r, k).value}
+            cmap = {key: next((k for h, k in hdr.items() if h.startswith(pre)), None) for key, pre in SR25_COLS.items()}
+            cmap["request"] = 4
+            if cur is None:
+                cur = (tab, []); out.append(cur)
+            continue
+        if cur is not None and cmap and re.match(r"^\d+[a-z]", b):
+            g = lambda k: clean(ws.cell(r, cmap[k]).value) if cmap.get(k) else ""
+            cur[1].append(dict(ref=b, target=c, request=g("request"), status=g("status"), opt1=g("opt1"),
+                               opt2=g("opt2"), support=g("support")))
+    if section:
+        out = [x for x in out if section.lower() in x[0].lower()]
+    return [x for x in out if x[1]]
+
+
+def sr25_for(code):
+    """SR25 sections for a faculty code or central unit code."""
+    if code in PILOT_FACULTIES:
+        return [x for x in read_sr25_tab("Faculties") if x[0].upper() == code]
+    src = SR25_SOURCES.get(code)
+    return read_sr25_tab(*src) if src else []
+
+
+def prev_lookup(sections):
+    """{sr25 ref: (status, response, links)} – first occurrence wins."""
+    d = {}
+    for _, rows in sections:
+        for x in rows:
+            resp = "\n\n".join(v for v in (x["opt1"], x["opt2"]) if v)
+            if x["ref"] not in d or not (d[x["ref"]][0] or d[x["ref"]][1]):  # prefer an answered occurrence
+                d[x["ref"]] = (x["status"], resp, x["support"])
+    return d
+
+
 def read_sr25_faculty():
     """{faculty code: {sr25 ref: (status, response, links)}} from SR25 master 'Faculties' tab."""
     ws = load_workbook(SRC / "SR25_master.xlsx", data_only=True)["Faculties"]
@@ -229,17 +294,19 @@ WIDTHS = {"A": 4, "B": 10, "C": 16, "D": 38, "E": 38, "F": 50, "G": 34, "H": 11,
           "L": 22, "M": 48, "N": 48, "O": 30, "P": 30, "Q": 20, "R": 24}
 
 
-def block(ws, top, unit_label, rows, sr25, lists, reg=None, key=None):
+def block(ws, top, unit_label, rows, sr25, lists, reg=None, key=None, ref_map=None, tailor=None, anchors=None):
     """Write a reporting block at row `top`. Returns next free row.
 
-    sr25 is None for central units; for faculties it holds end-2025 responses and switches on tailored request wording.
+    sr25: {SR25 ref: (status, response, links)} or None (no SR25 equivalent). ref_map: Qual row -> SR25 ref
+    (defaults to the faculty map). tailor: use the SR25-style faculty wording (default: faculty blocks).
+    anchors: {SR25 ref: row on '3. SR25 responses'} – makes Column H a link to the full SR25 response.
     If `reg` is given, (key, sheet, first_row, last_row) is recorded for the scoring formulas."""
     c = ws.cell(top, 2, unit_label)
     c.font = Font(name="Aptos Narrow", size=22, bold=True); c.fill = GREY
     h1 = top + 2
     for rng, text, fill, fnt in [
         ((3, 7), "Sustainability 2030 target and indicator", HDR, Font(name="Aptos Narrow", size=14, bold=True, color="FFFFFF")),
-        ((8, 11), "End-2025 reporting (for reference – click [+] above to expand)", HDR, Font(name="Aptos Narrow", size=14, bold=True, color="FFFFFF")),
+        ((8, 11), "End-2025 reporting (click the ref to see your full SR25 response; [+] above expands a summary)", HDR, Font(name="Aptos Narrow", size=14, bold=True, color="FFFFFF")),
         ((12, 18), "End-2026 reporting (PLEASE COMPLETE THIS SECTION)", GOLD, Font(name="Aptos Narrow", size=14, bold=True, color=DARK))]:
         ws.merge_cells(start_row=h1, start_column=rng[0], end_row=h1, end_column=rng[1])
         cell = ws.cell(h1, rng[0], text); cell.fill, cell.font, cell.alignment = fill, fnt, CWRAP
@@ -253,17 +320,28 @@ def block(ws, top, unit_label, rows, sr25, lists, reg=None, key=None):
         sub = ws.cell(h1 + 2, col, SUBS.get(col, ""))
         sub.fill, sub.font, sub.alignment, sub.border = GREY, Font(name="Aptos Narrow", size=10, bold=True, color=DARK), CWRAP, BOX
     r0 = h1 + 3
+    if ref_map is None:
+        ref_map = SR25_MAP
+    if tailor is None:
+        tailor = sr25 is not None and ref_map is SR25_MAP
     for k, r in enumerate(rows):
         rr = r0 + k
-        prev = sr25.get(SR25_MAP.get(r["row"]), ("", "", "")) if sr25 is not None else ("", "", "")
+        sref = ref_map.get(r["row"]) if sr25 is not None else None
+        prev = sr25.get(sref, ("", "", "")) if sref else ("", "", "")
         request = r["request"] or "(Reporting request TBC)"
         if sr25 is not None:
-            request = faculty_request(r["row"], SR25_MAP.get(r["row"]), prev[0], prev[1], request)
-        vals = [r["ref"], r["pa"], r["target"], r["indicator"], request, use_text(r),
-                SR25_MAP.get(r["row"], "N/A – new indicator") if sr25 is not None else "", prev[0], prev[1], prev[2]]
+            request = faculty_request(r["row"], sref, prev[0], prev[1], request, tailor=tailor,
+                                      linked=bool(anchors and sref in anchors))
+        href = sref if sref else ("N/A – new indicator" if sr25 is not None else "")
+        vals = [r["ref"], r["pa"], r["target"], r["indicator"], request, use_text(r), href, prev[0], prev[1], prev[2]]
         for i, v in enumerate(vals):
             cell = ws.cell(rr, 2 + i, v)
             body(cell, REFF if i < 4 else None, bold=(i == 0))
+        if anchors and sref in anchors:
+            h = ws.cell(rr, 8)
+            h.hyperlink = Hyperlink(ref=h.coordinate, location=f"'{SR25_SHEET}'!B{anchors[sref]}")
+            h.value = f"{sref}\n→ view SR25 response"
+            h.font = Font(name="Aptos Narrow", size=11, bold=True, color="0563C1", underline="single")
         for col in range(12, 19):
             body(ws.cell(rr, col))
         ws.row_dimensions[rr].height = 150
@@ -278,7 +356,7 @@ def block(ws, top, unit_label, rows, sr25, lists, reg=None, key=None):
 
 def setup_block_sheet(ws):
     widths(ws, WIDTHS)
-    for col in "HIJK":
+    for col in "IJK":  # H (related SR25 ref + link) stays visible
         ws.column_dimensions[col].outlineLevel = 1
         ws.column_dimensions[col].hidden = True
     ws.sheet_properties.outlinePr.summaryRight = False
@@ -292,7 +370,7 @@ def instructions(ws, unit_name):
                 "• Provide commentary on progress towards each target (Column M or N)\n"
                 "• Provide supporting documentation if required (Column O), including links to images\n"
                 "• Note the source of your information and any limitations (Column P), then confirm the information is accurate (Columns Q–R)\n"
-                "• Your end-2025 responses (where a related target existed) can be viewed by clicking the [+] icon above Columns H–K\n"
+                "• Where a related end-2025 target existed, click the ref in Column H to see your full SR25 response (Tab 3)\n"
                 "• Use Tab 2 of this spreadsheet to highlight key sustainability stories (optional)\n"
                 f"• 2026 is a transition year: Sustainability 2030 launched ~20 October 2026, so report on activity across all of 2026 "
                 f"and any early actions since launch.\n• Due: {DUE_DATE}. Questions: {CONTACT}")
@@ -343,20 +421,62 @@ def stories_sheet(ws, unit=None):
 
 
 # ---------------------------------------------------------------- per-unit request workbook
-def request_workbook(code, name, sections, sr25):
+SR25_SHEET = "3. SR25 responses"
+
+
+def sr25_sheet(wb, name, sr25_sections, ref_map, qual_by_row):
+    """Read-only copy of the unit's end-2025 responses. Returns {SR25 ref: row} for hyperlinks."""
+    ws = wb.create_sheet(SR25_SHEET)
+    title(ws, "End-2025 target status assessment and reporting (for reference)", f"Your SR25 responses – {name}")
+    ws["B3"] = ("Your responses to the end-2025 reporting request, against the former Sustainability Plan 2030 (SP2030) targets. "
+                "For reference only – please do not edit. Use the 'Back to request' links to return to the reporting template.")
+    ws["B3"].alignment = WRAP; ws.merge_cells("B3:I3"); ws.row_dimensions[3].height = 32
+    rev = {}
+    for row, ref in ref_map.items():
+        if row in qual_by_row:
+            rev.setdefault(ref, []).append(qual_by_row[row]["ref"])
+    cols = ["SR25 ref", "SP2030 target", "2025 reporting request", "Confirmed end-2025 status", "OPTION 1: Target-level reporting",
+            "OPTION 2: Indicator-level reporting", "Supporting information/comments", "Related SR26 indicator(s)"]
+    anchors, answered, r = {}, {}, 5
+    if not sr25_sections:
+        ws.cell(r, 2, "No end-2025 request was issued to this area (new to Sustainability 2030 reporting).").font = Font(name="Aptos", italic=True)
+    for sec, rows in sr25_sections:
+        ws.cell(r, 2, sec).font = Font(name="Aptos Narrow", size=16, bold=True); ws.cell(r, 2).fill = GREY
+        r += 1
+        hdr_row(ws, r, cols); r += 1
+        for x in rows:
+            vals = [x["ref"], x["target"], x["request"], x["status"] or "Not provided", x["opt1"], x["opt2"], x["support"],
+                    ", ".join(rev.get(x["ref"], []))]
+            for i, v in enumerate(vals):
+                body(ws.cell(r, 2 + i, v), REFF if i == 0 else None, bold=i == 0)
+            if x["ref"] not in anchors or (x["status"] or x["opt1"] or x["opt2"]) and not answered.get(x["ref"]):
+                anchors[x["ref"]] = r  # link to the answered occurrence where a ref appears twice
+                answered[x["ref"]] = bool(x["status"] or x["opt1"] or x["opt2"])
+            ws.row_dimensions[r].height = 160
+            r += 1
+        r += 1
+    widths(ws, {"A": 4, "B": 10, "C": 34, "D": 36, "E": 16, "F": 60, "G": 60, "H": 34, "I": 16})
+    back = ws.cell(4, 2, "← Back to request"); back.hyperlink = Hyperlink(ref="B4", location="'1. Reporting template'!A1")
+    back.font = Font(name="Aptos", color="0563C1", underline="single", bold=True)
+    ws.freeze_panes = "C5"
+    return anchors
+
+
+def request_workbook(code, name, sections, sr25, ref_map=None, sr25_sections=None, qual_by_row=None, folder="faculty_requests"):
     wb = Workbook(); ws = wb.active; ws.title = "1. Reporting template"
     lists = lists_sheet(wb)
+    anchors = sr25_sheet(wb, name, sr25_sections or [], ref_map if ref_map is not None else SR25_MAP, qual_by_row or {})
     title(ws, "End-2026 target status assessment and reporting", "End-2026 target status confirmation and reporting")
     setup_block_sheet(ws); instructions(ws, name)
     top = 11
     for label, rows in sections:
-        top = block(ws, top, label, rows, sr25, lists)
+        top = block(ws, top, label, rows, sr25, lists, ref_map=ref_map, anchors=anchors)
     ws.freeze_panes = "C14"
     st = wb.create_sheet("2. OPTIONAL highlighted stories", 1)
     stories_sheet(st, unit=code)
     wb.move_sheet("Lists", offset=0)
     safe = code.replace("&", "and")
-    path = OUT / ("faculty_requests" if sr25 is not None else "central_unit_requests") / f"{safe} - end-2026 sustainability reporting request.xlsx"
+    path = OUT / folder / f"{safe} - end-2026 sustainability reporting request.xlsx"
     path.parent.mkdir(parents=True, exist_ok=True)
     wb.save(path)
     return path.name
@@ -533,15 +653,16 @@ def master(qual, quan, fac_rows, central_sections, sr25_all):
         ws["B3"] = "Consolidated responses – paste from returned request workbooks (identical column layout). Click [+] above Columns H–K for end-2025 responses."
         ws["B3"].font = Font(name="Aptos", italic=True)
         top = 5
-        for idx, (key, label, rows, sr) in enumerate(sections):
-            top = block(ws, top, f"1.{idx + 1}  {label}", rows, sr, LISTS, reg, key)
+        for idx, (key, label, rows, sr, rmap) in enumerate(sections):
+            top = block(ws, top, f"1.{idx + 1}  {label}", rows, sr, LISTS, reg, key, ref_map=rmap)
         return ws
 
     global LISTS
     lists = lists_sheet(wb); LISTS = lists
-    unit_tab("Faculties", "Faculties", [(c, f"{c} – {n}", fac_rows, sr25_all.get(c, {})) for c, n in PILOT_FACULTIES.items()], True)
+    unit_tab("Faculties", "Faculties", [(c, f"{c} – {n}", fac_rows, prev_lookup(sr25_for(c)), None) for c, n in PILOT_FACULTIES.items()], True)
     for code, name, _, secs in CENTRAL:
-        unit_tab(code, name, [(label.split(" (")[0], label, rows, None) for label, rows in central_sections[code] if rows], False)
+        prev = prev_lookup(sr25_for(code)) if SR25_SOURCES.get(code) else None
+        unit_tab(code, name, [(label.split(" (")[0], label, rows, prev, CENTRAL_SR25_MAP[code]) for label, rows in central_sections[code] if rows], False)
 
     scoring_tabs(wb, qual, reg)
     wording_log(wb, fac_rows)
@@ -790,10 +911,15 @@ def main():
     central_sections = {code: [(label, [r for r in qual if m(r)]) for label, m in secs] for code, _, _, secs in CENTRAL}
     print("Qual indicators:", len(qual), "| faculty rows:", len(fac_rows), "| quant rows:", len(quan))
     for code, name in PILOT_FACULTIES.items():
-        print(" ", request_workbook(code, name, [(f"{code} – {name}", fac_rows)], sr25.get(code, {})))
+        s25 = sr25_for(code)
+        print(" ", request_workbook(code, name, [(f"{code} – {name}", fac_rows)], prev_lookup(s25),
+                                    sr25_sections=s25, qual_by_row=by_row), sum(len(x[1]) for x in s25), "SR25 rows")
     for code, name, _, _ in CENTRAL:
         secs = [(l, rows) for l, rows in central_sections[code] if rows]
-        print(" ", request_workbook(code, name, secs, None), [len(r) for _, r in secs])
+        s25 = sr25_for(code)
+        print(" ", request_workbook(code, name, secs, prev_lookup(s25) if s25 else None, ref_map=CENTRAL_SR25_MAP[code],
+                                    sr25_sections=s25, qual_by_row=by_row, folder="central_unit_requests"),
+              [len(r) for _, r in secs], sum(len(x[1]) for x in s25), "SR25 rows")
     print(" ", master(qual, quan, fac_rows, central_sections, sr25))
 
 

@@ -89,16 +89,18 @@ TAILORED = {
 }
 
 
-def faculty_request(row, sr25_ref, prev_status, prev_response, original):
-    """Compose the faculty-specific request text."""
-    req, note = TAILORED.get(row, (original, ""))
+def faculty_request(row, sr25_ref, prev_status, prev_response, original, tailor=True, linked=False):
+    """Compose the request text: opening line pointing to the end-2025 response, then the ask.
+    tailor=False keeps the original S2030 wording (central units)."""
+    req, note = TAILORED.get(row, (original, "")) if tailor else (original, "")
+    who = "your faculty" if tailor else "your area"
+    where = "click the ref in Column H to see it in full in Tab 3" if linked else "see Column J – click [+] above Columns I–K"
     parts = []
     if sr25_ref:
         if prev_response:
             st = f" and rated it '{prev_status}'" if prev_status else ""
-            parts.append(f"In end-2025 reporting your faculty reported on the related SP2030 target {sr25_ref}{st} "
-                         "(see Column J – click [+] above Columns H–K). Please build on this rather than repeating it, "
-                         "focusing on what is new in 2026.")
+            parts.append(f"In end-2025 reporting {who} reported on the related SP2030 target {sr25_ref}{st} "
+                         f"({where}). Please build on this rather than repeating it, focusing on what is new in 2026.")
         else:
             parts.append(f"We did not receive an end-2025 response for the related SP2030 target {sr25_ref}, "
                          "so please include any relevant activity from across 2026.")
