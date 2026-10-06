@@ -18,6 +18,7 @@ from openpyxl.worksheet.hyperlink import Hyperlink
 
 from faculty_requests import USE, faculty_request
 import quant
+import rasci
 
 warnings.filterwarnings("ignore")
 ROOT = Path(__file__).parent
@@ -25,11 +26,12 @@ SRC = ROOT / "source"
 OUT = ROOT / "output"
 
 # ---------------------------------------------------------------- settings
-VERSION = "v0.3"  # bump on every revision; appears in file names and Read me
+VERSION = "v0.4"  # bump on every revision; appears in file names and Read me
 VERSION_HISTORY = [
     ("v0.1", "First draft: requirements matrix, pilot faculty and central-unit requests, tracker, evidence register."),
     ("v0.2", "SR25-style faculty wording and 'How SST will use'; scoring/T1/T2 formulas; Legal & Risk; project tabs; linked SR25 responses tab."),
     ("v0.3", "Quantitative indicators separated: removed from requirements matrix; '2. Quant coverage' and '2b. Databook register' against the Databook draft; '4. Quantitative data' tab in central-unit requests."),
+    ("v0.4", "RASCI rebuilt to the SR25 standard ('3b. RASCI matrix'): indicator hierarchy, consolidated portfolios, SST contacts, A/R/S/C/I codes, summary counts."),
 ]
 DUE_DATE = "Friday 15 January 2027 (TBC)"
 STORIES_DUE = "Friday 4 December 2026 (TBC)"
@@ -510,7 +512,8 @@ def master(qual, quan, fac_rows, central_sections, sr25_all):
         ("Tabs", "1. Requirements matrix – every S2030 qualitative indicator, owner and request\n"
                  "2. Quant coverage – every quantitative indicator checked against the Databook draft, owner and action\n"
                  "2b. Databook register – every Databook data point with columns to confirm definition, source, owner\n"
-                 "3. Stakeholder map & RASCI – SR25 → SR26 unit mapping and who is asked for what\n"
+                 "3. Stakeholder map – SR25 → SR26 unit mapping\n"
+                 "3b. RASCI matrix – A/R/S/C/I roles per indicator and area (SR25 RASCI format), with counts\n"
                  "4. Request tracker – sent/chased/received/confirmed status and response rate\n"
                  "Faculties / CI&S / CFOG / ESG / CIOG / MRE / L&R – consolidated responses (copy in from returned request workbooks; same layout)\n"
                  "Highlighted stories – consolidated optional stories and case-study shortlist\n"
@@ -566,8 +569,8 @@ def master(qual, quan, fac_rows, central_sections, sr25_all):
     quant.register_tab(wb, DATABOOK)
 
     # 3. Stakeholder map & RASCI
-    ws = wb.create_sheet("3. Stakeholder map & RASCI")
-    title(ws, "End-2026 target status assessment and reporting", "3. Stakeholder map & RASCI")
+    ws = wb.create_sheet("3. Stakeholder map")
+    title(ws, "End-2026 target status assessment and reporting", "3. Stakeholder map (SR25 → SR26)")
     hdr_row(ws, 4, ["SR26 unit", "SR26 full name", "SR25 equivalent (2025 master)", "Section / team", "Key contact", "Status / notes"])
     units = [("Faculty", name, f"Faculties tab – {code}", "Associate Dean Sustainability / faculty sustainability lead", "TBC", "Pilot faculty") for code, name in PILOT_FACULTIES.items()]
     for code, name, sr25name, secs in CENTRAL:
@@ -582,25 +585,8 @@ def master(qual, quan, fac_rows, central_sections, sr25_all):
         for i, v in enumerate(u):
             body(ws.cell(5 + k, 2 + i, v))
     widths(ws, {"A": 4, "B": 14, "C": 40, "D": 44, "E": 40, "F": 18, "G": 50})
-    r0 = 7 + len(units)
-    ws.cell(r0 - 1, 2, "RASCI – who receives a request for each indicator (R = Responsible to report; TBC = to confirm)").font = Font(name="Aptos", bold=True, size=14, color=NAVY)
-    mcols = ["Ref", "Priority area", "Indicator"] + list(PILOT_FACULTIES) + [c[0] for c in CENTRAL]
-    hdr_row(ws, r0, mcols)
-    for k, r in enumerate(qual):
-        rr = r0 + 1 + k
-        vals = [r["ref"], r["pa"], r["indicator"]]
-        vals += ["R" if "Faculties" in r["stake"] else "" for _ in PILOT_FACULTIES]
-        vals += ["R" if any(s[1](r) for s in c[3]) else "" for c in CENTRAL]
-        for i, v in enumerate(vals):
-            cell = ws.cell(rr, 2 + i, v); body(cell, REFF if i == 0 else None)
-            if i >= 3:
-                cell.alignment = CWRAP
-                if v:
-                    cell.fill = PatternFill("solid", fgColor="E2EFDA")
-        ws.row_dimensions[rr].height = 45
-    for i in range(len(mcols) - 3):
-        ws.column_dimensions[get_column_letter(5 + i)].width = max(ws.column_dimensions[get_column_letter(5 + i)].width or 0, 10)
-    ws.column_dimensions["D"].width = 44
+    ws.cell(7 + len(units), 2, "Who is responsible for each indicator: see '3b. RASCI matrix'.").font = Font(name="Aptos", italic=True)
+    rasci.rasci_tab(wb, QUAL_ALL, COVERAGE, PILOT_FACULTIES, CENTRAL)
 
     # 4. Request tracker
     ws = wb.create_sheet("4. Request tracker")
@@ -957,7 +943,8 @@ def main():
     qual = read_qual()
     by_row = {r["row"]: r for r in qual}
     quan = read_quan(by_row)
-    global DATABOOK, COVERAGE
+    global DATABOOK, COVERAGE, QUAL_ALL
+    QUAL_ALL = qual
     DATABOOK = quant.read_databook(qual)
     COVERAGE = quant.coverage(qual, quan, DATABOOK)
     sr25 = read_sr25_faculty()
