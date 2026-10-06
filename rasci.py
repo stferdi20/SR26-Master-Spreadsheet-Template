@@ -279,6 +279,8 @@ def triangulation_tab(wb, qual):
         import build as B
         if q["row"] in B.EXCLUSIVE:
             action = f"Team decision (v0.7): asked of {B.EXCLUSIVE[q['row']]} only."
+        elif q["row"] in B.FACULTY_REMOVED:
+            action = "Team decision (v0.8): not asked of faculties; central units keep it."
         elif q["row"] in B.FACULTY_MERGED:
             action = "Team decision (v0.7): for faculties, covered by the merged EE1(a) question."
         elif not tg:

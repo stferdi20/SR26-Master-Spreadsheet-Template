@@ -26,7 +26,7 @@ SRC = ROOT / "source"
 OUT = ROOT / "output"
 
 # ---------------------------------------------------------------- settings
-VERSION = "v0.7"  # bump on every revision; appears in file names and Read me
+VERSION = "v0.8"  # bump on every revision; appears in file names and Read me
 VERSION_HISTORY = [
     ("v0.1", "First draft: requirements matrix, pilot faculty and central-unit requests, tracker, evidence register."),
     ("v0.2", "SR25-style faculty wording and 'How SST will use'; scoring/T1/T2 formulas; Legal & Risk; project tabs; linked SR25 responses tab."),
@@ -35,6 +35,7 @@ VERSION_HISTORY = [
     ("v0.5", "'3c. RASCI triangulation': each SR26 indicator compared with the SR25 RASCI (equivalent targets, translated areas), gaps and suggested actions."),
     ("v0.6", "Chancellery units added following SR25 (ACM, CGCE, Chancellery Education, SASS, Chancellery Indigenous) with linked SR25 responses; cross-tab consistency check (check.py); Impact column added to Issues log (as SR25)."),
     ("v0.7", "Team review: Chancellery units as separate tabs (AC&M, MRE, GCE, Education, SaSS, Indigenous); faculty requests cut down (ABP walkthrough) – EE1(a)+(c) merged, 'any examples' wording, alumni to SaSS, CL2(a)/(c) to AC&M, TR3(a)/(c)/(d) to MRE; simpler evidence register; highlighted stories compiled per unit with SST priority-area columns; project tabs moved to a separate project workbook."),
+    ("v0.8", "TR1(b)–(d) to MRE only; EN1(d) removed from faculties (9 faculty questions); note on EE1(c) in T1/T2 that faculty answers sit under EE1(a)."),
 ]
 DUE_DATE = "Friday 15 January 2027 (TBC)"
 STORIES_DUE = "Friday 4 December 2026 (TBC)"
@@ -214,13 +215,22 @@ def read_quan(qual_by_row):
 # Indicators asked of one unit only (team review, ABP walkthrough): Qual row -> unit code
 EXCLUSIVE = {11: "SaSS",                      # EE1(d) alumni
              27: "AC&M", 29: "AC&M",          # CL2(a), CL2(c) climate communications / mapping
+             13: "MRE", 14: "MRE", 15: "MRE",  # TR1(b), (c), (d) academic–professional collaboration mechanisms
              20: "MRE", 22: "MRE", 23: "MRE"}  # TR3(a), (c), (d) research systems, culture, assessment
+FACULTY_REMOVED = {55}  # EN1(d) governance – not asked of faculties (central units keep it)
 FACULTY_MERGED = {10: 8}  # EE1(c) is covered by the faculty EE1(a) question
 
 
 def asks_faculties(r):
     """True if the pilot faculties receive a request for this Qual row."""
-    return "Faculties" in r["stake"] and r["row"] not in EXCLUSIVE and r["row"] not in FACULTY_MERGED
+    return ("Faculties" in r["stake"] and r["row"] not in EXCLUSIVE and r["row"] not in FACULTY_MERGED
+            and r["row"] not in FACULTY_REMOVED)
+
+
+def merged_note(ref_by_row):
+    """{ref: note} for indicators whose faculty answers are filed under another indicator."""
+    return {ref_by_row[a]: f"Faculties answer this indicator in their {ref_by_row[b]} response (merged question) – review both."
+            for a, b in FACULTY_MERGED.items() if a in ref_by_row and b in ref_by_row}
 
 
 def _exclusive(m, code, is_first):
@@ -782,7 +792,7 @@ def master(qual, quan, fac_rows, central_sections, sr25_all):
         ("Business Services split into CIOG (AI) and ESG (nature & biodiversity, waste & circular economy, part of quant. climate leadership) – confirm contacts.", "CIOG; ESG", "TBC", "Confirm contacts", "Open"),
         ("Procurement sits with CFOG (RP1(a) procurement case studies routed to CFOG – Procurement although the Qual sheet names no stakeholder); estate planning centralised in CI&S – requests issued centrally, not to faculties.", "CFOG; CI&S", "—", "Noted", "Closed"),
         ("Chancellery units reported separately, as SR25: AC&M, MRE, GCE, Education, SaSS and Indigenous each have their own request and master tab. Alumni (EE1(d)) asked of SaSS only.", "Stakeholder map", "Stefanus", "Confirm contacts", "Closed"),
-        ("Faculty requests cut down after ABP walkthrough: EE1(a)+(c) merged; CL2(a)/(c) to AC&M only; TR3(a)/(c)/(d) to MRE only; EE1(d) to SaSS only. Wattle Fellowship to be asked directly (not tracked in master).", "Faculties", "Stefanus", "Confirm with team; apply to other faculties", "Open"),
+        ("Faculty requests cut down after ABP walkthrough: EE1(a)+(c) merged; CL2(a)/(c) to AC&M only; TR1(b)–(d) and TR3(a)/(c)/(d) to MRE only; EN1(d) not asked of faculties; EE1(d) to SaSS only. Wattle Fellowship to be asked directly (not tracked in master).", "Faculties", "Stefanus", "Confirm with team; apply to other faculties", "Open"),
         ("Legal & Risk asked for climate resilience maturity CL3(a), following SR25 (8a(i)/(ii): University Risk 16 Climate Change; flood emergency response plans). CL3(a) is also with CI&S (Gerard) – agree who leads.", "CL3(a); L&R; CI&S", "Stefanus", "Confirm with Gerard", "Open"),
         ("TR2(b) 'Documented progress of strategic initiatives, incl. Impact Accelerators' reuses the TR2(d) case-study wording and has no stakeholder in the Qual sheet – left as-is.", "TR2(b)", "TBC", "Review wording/owner", "Open"),
         ("Quantitative-only rows (no stakeholder in the Qual sheet) removed from the requirements matrix and moved to '2. Quant coverage'; Databook gaps requested in Tab 4 of the owning central unit's request.", "TR2(b); CL1(a)-(b); CL2(b); NB1(a); CE1-2; RP2; RI1(a)", "Stefanus", "Confirm owners and Databook coverage with Chris", "Open"),
@@ -923,6 +933,7 @@ def scoring_tabs(wb, qual, reg):
     last_tc = 6 + len(qual)
 
     # ---- T1. Manual target review: every indicator, only the units asked, side by side (base review sheet)
+    MERGED = merged_note({q["row"]: q["ref"] for q in qual})
     t1 = wb.create_sheet("T1. Manual target review")
     title(t1, "End-2026 target status assessment and reporting", "T1. Manual target review")
     t1["C4"] = "Description"; t1["C4"].font = Font(name="Aptos", bold=True)
@@ -955,6 +966,7 @@ def scoring_tabs(wb, qual, reg):
         for col, h in zip(sc[:2], ["Target score (text)", "Threshold status (SR25 rule)"]):
             c = t1[f"{col}{r}"]; c.value = f"='A1. Data scoring'!{C[h]}{a1}"; body(c, PatternFill("solid", fgColor="E2EFDA"), bold=True)
         body(t1[f"{sc[2]}{r}"])
+        t1[f"{sc[2]}{r}"].value = MERGED.get(q["ref"])
         for fi, (fname, _) in enumerate(FIELDS):
             rr = r + 1 + fi
             body(t1.cell(rr, 2, q["ref"])); t1.cell(rr, 2).font = Font(name="Aptos Narrow", size=9, color="808080")
@@ -977,7 +989,9 @@ def scoring_tabs(wb, qual, reg):
     title(t2, "End-2026 target status assessment and reporting", "T2. Single target review")
     t2["B4"] = "Target selected"; t2["B4"].font = Font(name="Aptos", bold=True)
     t2["C4"] = qual[0]["ref"]; t2["C4"].fill = GOLD; t2["C4"].font = Font(name="Aptos", bold=True, size=14); t2["C4"].border = MBOX
-    t2["D4"] = "← select an indicator ref from the dropdown"
+    note_f = "".join(f'IF($C$4="{k}","{v}",' for k, v in MERGED.items())
+    t2["D4"] = f'={note_f}"← select an indicator ref from the dropdown"' + ")" * len(MERGED)
+    t2["D4"].font = Font(name="Aptos", bold=True, color="C00000")
     rm = "'1. Requirements matrix'"
     dv_list(t2, f"={rm}!$B$6:$B${5 + len(qual)}", "C4")
     info = [("Priority area", "D"), ("Target", "E"), ("Indicator", "F"), ("Reporting requirement", "G"), ("Request issued to", "I")]
