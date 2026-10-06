@@ -9,7 +9,8 @@ from openpyxl.utils import get_column_letter
 SR25_CONTACT = {"ABP": "Gerard", "ARTS": "Rose", "FBE": "Katie", "SCI": "Katie",
                 "CI&S – Estate Planning & Development": "Gerard and Davina", "CI&S – Sustainability Strategy": "Director",
                 "CFOG – Procurement": "Chris", "CFOG – Treasury & Investments": "Chris", "ESG": "All", "CIOG": "TBC",
-                "MRE": "Director", "L&R": "Gerard", "SST": "All", "FAC*": "Director", "COO*": "Director"}
+                "MRE": "Director", "L&R": "Gerard", "Legal & Risk": "Gerard", "SST": "All", "CH*": "Director",
+                "ACM": "Rose", "CGCE": "Gerard", "CEDU": "Katie", "SASS": "Rose", "CIND": "Gerard", "FAC*": "Director", "COO*": "Director"}
 CODES = [("A", "Accountable"), ("A and R", "Accountable and Responsible"), ("R", "Responsible – narrative request"),
          ("R (quant)", "Responsible – figures for the Databook (Tab 4)"), ("R (compile)", "SST compiles from other responses / no request"),
          ("S", "Support"), ("C", "Consulted"), ("I", "Informed")]
@@ -18,6 +19,11 @@ FILL = {"A and R": "00B050", "A": "92D050", "R": "C6EFCE", "R (quant)": "BDD7EE"
 
 
 SR26_CODES = {}  # ref -> {SR26 area label: code}, filled by rasci_tab for the triangulation tab
+
+
+def area_label(section_label):
+    """Column label for a central-unit section, e.g. 'MRE – Research (incl. MBI – TBC)' -> 'MRE – Research'."""
+    return section_label.split(" (")[0]
 
 
 def rasci_tab(wb, qual, coverage, faculties, central):
@@ -35,13 +41,14 @@ def rasci_tab(wb, qual, coverage, faculties, central):
     # ---- columns: (portfolio, area label, key, is_consolidated)
     cols = [("Faculty", "Faculties – pilot (all)", "FAC*", True)]
     cols += [("Faculty", f"{code} – {name.replace('Faculty of ', '')}", code, False) for code, name in faculties.items()]
-    coo = [(c, n, secs) for c, n, _, secs in central if c != "MRE"]
-    cols.append(("COO portfolio", "COO portfolio (all)", "COO*", True))
-    for code, name, secs in coo:
-        for label, _ in secs:
-            key = label.split(" (")[0].split(" – ")[0] if len(secs) == 1 else label.split(" (")[0]
-            cols.append(("COO portfolio", label.split(" (")[0], key, False))
-    cols.append(("Chancellery", "MRE – Melbourne Research and Enterprise", "MRE", False))
+    chancellery = {"MRE", "ACM", "CGCE", "CEDU", "SASS", "CIND"}
+    for port, star, members in (("COO portfolio", "COO*", [c for c in central if c[0] not in chancellery]),
+                                ("Chancellery", "CH*", [c for c in central if c[0] in chancellery])):
+        cols.append((port, f"{port} (all)", star, True))
+        for code, name, _, secs in members:
+            for label, _ in secs:
+                lab = area_label(label)
+                cols.append((port, lab, lab, False))
     cols.append(("Sustainability Strategy", "SST (compiles / Databook)", "SST", False))
     first = 9  # first area column (I), as SR25
     col_of = {c[2]: first + i for i, c in enumerate(cols)}
@@ -54,7 +61,7 @@ def rasci_tab(wb, qual, coverage, faculties, central):
     ws.cell(5, first, "Areas Accountable and/or Responsible for SR26 reporting (green = consolidated portfolio, white = individual area)")
     for i, (port, label, key, cons) in enumerate(cols):
         c = first + i
-        ws.cell(3, c, SR25_CONTACT.get(key, SR25_CONTACT.get(key.split(" –")[0], "TBC")))
+        ws.cell(3, c, SR25_CONTACT.get(key, SR25_CONTACT.get(key.split(" – ")[0], "TBC")))
         ws.cell(4, c, port + (" (consolidated)" if cons else ""))
         ws.cell(6, c, label)
         for r in (3, 4, 6):
@@ -62,7 +69,7 @@ def rasci_tab(wb, qual, coverage, faculties, central):
             x.font = Font(name="Aptos", bold=r == 6, size=10 if r != 6 else 11)
         ws.cell(6, c).fill = PatternFill("solid", fgColor="00B050" if cons else "FFFFFF")
         ws.column_dimensions[get_column_letter(c)].width = 13
-        if not cons and port in ("Faculty", "COO portfolio"):
+        if not cons:
             ws.column_dimensions[get_column_letter(c)].outlineLevel = 1
     for i in range(1, 9):
         x = ws.cell(6, i); x.fill = B.HDR; x.font = B.WHITE_B; x.alignment = B.CWRAP; x.border = B.BOX
@@ -81,7 +88,7 @@ def rasci_tab(wb, qual, coverage, faculties, central):
         for code, name, _, secs in central:
             for label, m in secs:
                 if m(q):
-                    key = "MRE" if code == "MRE" else next(c[2] for c in cols if c[1] == label.split(" (")[0])
+                    key = area_label(label)
                     d[key] = "R"
         c = cov.get(q["ref"])
         if c:
@@ -91,7 +98,7 @@ def rasci_tab(wb, qual, coverage, faculties, central):
             else:
                 if own == "CFOG":  # two CFOG sections: investments vs procurement
                     own = "CFOG – Treasury & Investments" if q["ref"].startswith("RI") else "CFOG – Procurement"
-                key = own if own in col_of else next((k for k in col_of if k.startswith(own)), None)
+                key = own if own in col_of else next((k for k in col_of if k.startswith(own + " ")), None)
                 if key and d.get(key) != "R" and c["npts"]:
                     d[key] = "R (quant)"
                 elif key and c["npts"]:
@@ -101,8 +108,9 @@ def rasci_tab(wb, qual, coverage, faculties, central):
         d["SST"] = d.get("SST", "S")  # SST supports every indicator
         if any(k in faculties for k in d):
             d["FAC*"] = "A and R"
-        if any(cols[col_of[k] - first][0] == "COO portfolio" for k in d if k in col_of):
-            d["COO*"] = "A and R"
+        for port, star in (("COO portfolio", "COO*"), ("Chancellery", "CH*")):
+            if any(cols[col_of[k] - first][0] == port for k in d if k in col_of):
+                d[star] = "A and R"
         SR26_CODES[q["ref"]] = {cols[col_of[k] - first][1]: v for k, v in d.items() if k in col_of and not k.endswith("*")}
         return d
 
@@ -197,17 +205,17 @@ SR25_AREA = {
     "Business and Economics / MBS": "FBE – Business and Economics", "Science": "SCI – Science",
     "Education": "Non-pilot faculties", "Engineering and IT": "Non-pilot faculties", "Fine Arts and Music": "Non-pilot faculties",
     "Law": "Non-pilot faculties", "MDHS": "Non-pilot faculties",
-    "Academic": "Not in SR26: Provost / Chancellery Education", "Indigenous": "Not in SR26: Chancellery Indigenous",
-    "People strategy?": "Not in SR26: People strategy", "Advancement, Communications & Marketing": "Not in SR26: Advancement (ACM)",
-    "Chancellery Research and Enterprise": "MRE – Melbourne Research and Enterprise",
-    "Chancellery Global": "Not in SR26: Chancellery Global, Culture & Engagement",
-    "Community and cultural partnerships": "Not in SR26: Chancellery Global, Culture & Engagement",
+    "Academic": "CEDU – Chancellery Education", "Indigenous": "CIND – Chancellery Indigenous",
+    "People strategy?": "Not in SR26: People strategy", "Advancement, Communications & Marketing": "ACM – Advancement, Communications & Marketing",
+    "Chancellery Research and Enterprise": "MRE – Research",
+    "Chancellery Global": "CGCE – Global, Culture & Engagement",
+    "Community and cultural partnerships": "CGCE – Global, Culture & Engagement",
     "CD Sustainability Strategy": "CI&S – Sustainability Strategy", "CD Treasury & Investments": "CFOG – Treasury & Investments",
     "CD Estate (development,strategy,planning and perfomance)": "CI&S – Estate Planning & Development",
     "CD EPMO and investment office": "Not in SR26: EPMO & investment office", "CFOG (Finance)": "Not in SR26: CFOG Finance",
     "CFOG (Procurement)": "CFOG – Procurement", "Campus Management - Sustainability Delivery": "ESG – Campus Operations & Sustainability Delivery",
     "Campus management - project delivery": "ESG – Campus Operations & Sustainability Delivery",
-    "Student and scholarly services": "Not in SR26: Student & Scholarly Services", "RIC": "Not in SR26: RIC",
+    "Student and scholarly services": "SASS – Student & Scholarly Services", "RIC": "Not in SR26: RIC",
     "Legal and Risk": "Legal & Risk – Risk & resilience", "EPG": "Not in SR26: EPG",
     "University governance": "Not in SR26: University governance", "Academic Board": "Not in SR26: Academic Board",
 }

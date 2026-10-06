@@ -26,13 +26,14 @@ SRC = ROOT / "source"
 OUT = ROOT / "output"
 
 # ---------------------------------------------------------------- settings
-VERSION = "v0.5"  # bump on every revision; appears in file names and Read me
+VERSION = "v0.6"  # bump on every revision; appears in file names and Read me
 VERSION_HISTORY = [
     ("v0.1", "First draft: requirements matrix, pilot faculty and central-unit requests, tracker, evidence register."),
     ("v0.2", "SR25-style faculty wording and 'How SST will use'; scoring/T1/T2 formulas; Legal & Risk; project tabs; linked SR25 responses tab."),
     ("v0.3", "Quantitative indicators separated: removed from requirements matrix; '2. Quant coverage' and '2b. Databook register' against the Databook draft; '4. Quantitative data' tab in central-unit requests."),
     ("v0.4", "RASCI rebuilt to the SR25 standard ('3b. RASCI matrix'): indicator hierarchy, consolidated portfolios, SST contacts, A/R/S/C/I codes, summary counts."),
     ("v0.5", "'3c. RASCI triangulation': each SR26 indicator compared with the SR25 RASCI (equivalent targets, translated areas), gaps and suggested actions."),
+    ("v0.6", "Chancellery units added following SR25 (ACM, CGCE, Chancellery Education, SASS, Chancellery Indigenous) with linked SR25 responses; cross-tab consistency check (check.py); Impact column added to Issues log (as SR25)."),
 ]
 DUE_DATE = "Friday 15 January 2027 (TBC)"
 STORIES_DUE = "Friday 4 December 2026 (TBC)"
@@ -69,6 +70,17 @@ CENTRAL = [
     ("MRE", "Melbourne Research and Enterprise (MRE)",
      "Chancellery Research and Enterprise",
      [("MRE – Research (incl. MBI – TBC)", lambda r: "MRE" in r["stake"] or "MBI" in r["stake"])]),
+    # Chancellery units, following SR25 (Chancellery tab sections and RASCI roles), mapped to equivalent SR26 indicators
+    ("ACM", "Advancement, Communications & Marketing (ACM)", "Chancellery – Advancement, Communications & Marketing",
+     [("ACM – Advancement, Communications & Marketing", lambda r: r["row"] in (11, 16, 29, 54))]),
+    ("CGCE", "Chancellery Global, Culture & Engagement (CGCE)", "Chancellery – Global, Culture and Engagement",
+     [("CGCE – Global, Culture & Engagement", lambda r: r["row"] in (52, 54))]),
+    ("CEDU", "Chancellery Education", "Chancellery – Chancellery Education",
+     [("CEDU – Chancellery Education", lambda r: r["row"] in (8, 9, 11, 54))]),
+    ("SASS", "Student & Scholarly Services (SASS)", "Chancellery – Student and scholarly services",
+     [("SASS – Student & Scholarly Services", lambda r: r["row"] == 10)]),
+    ("CIND", "Chancellery Indigenous", "Chancellery – Chancellery Indigenous",
+     [("CIND – Chancellery Indigenous", lambda r: r["row"] == 52)]),
     # SR25 Legal and Risk reported 8a(i)/(ii) climate change preparedness (University Risk 16, flood emergency plans)
     ("L&R", "Legal and Risk", "Legal and Risk",
      [("Legal & Risk – Risk & resilience", lambda r: r["row"] == 30)]),
@@ -205,6 +217,11 @@ SR25_SOURCES = {
     "ESG": ("Business Services", None),
     "CIOG": None,  # AI not requested in SR25
     "MRE": ("Chancellery", "Research and Enterprise"),
+    "ACM": ("Chancellery", "Advancement"),
+    "CGCE": ("Chancellery", "Global, Culture"),
+    "CEDU": ("Chancellery", "Chancellery Education"),
+    "SASS": ("Chancellery", "Student and scholarly"),
+    "CIND": ("Chancellery", "Chancellery Indigenous"),
     "L&R": ("Legal and Risk", None),
 }
 # Central units: S2030 Qual row -> closest SR25 (SP2030) ref answered by that unit
@@ -215,6 +232,11 @@ CENTRAL_SR25_MAP = {
     "CIOG": {},
     "MRE": {12: "5a(i)", 16: "5b(ii)", 18: "5b(iii)", 20: "5c(i)", 21: "5c(ii)", 53: "2a"},
     "L&R": {30: "8a(i)"},
+    "ACM": {11: "4b(iii)", 16: "5b(ii)", 29: "5b(ii)", 54: "3e"},
+    "CGCE": {54: "7c(ii)"},
+    "CEDU": {8: "4a(ii)", 11: "4b(i)", 54: "3a(ii)"},
+    "SASS": {10: "3b(vii)"},
+    "CIND": {52: "6a"},
 }
 SR25_COLS = {"status": "Confirm end-20", "opt1": "OPTION 1", "opt2": "OPTION 2", "support": "Supporting inf"}
 
@@ -507,7 +529,7 @@ def master(qual, quan, fac_rows, central_sections, sr25_all):
     title(ws, "SR26 data collection master spreadsheet", "2026 Sustainability Report – data collection master")
     readme = [
         ("Purpose", "Central record of SR26 data requirements, owners, reporting requests, responses and evidence. Adapted from the 2025 end-year reporting master spreadsheet (V0.2) and the Sustainability 2030 updated targets (Qual and Quan worksheets)."),
-        ("Status", f"DRAFT {VERSION} – pilot with 4 faculties (ABP, Arts, FBE, Science) and 6 central units (CI&S, CFOG, ESG, CIOG, MRE, Legal & Risk)."),
+        ("Status", f"DRAFT {VERSION} – pilot with {len(PILOT_FACULTIES)} faculties ({', '.join(PILOT_FACULTIES)}) and {len(CENTRAL)} central units ({', '.join(c[0] for c in CENTRAL)})."),
         ("Reporting approach", "Transition year: cover all of CY2026, distinguishing former Sustainability Plan 2030 activity from foundations and early actions after the Sustainability 2030 launch (~20 Oct 2026). Databook is the authoritative quantitative source. Target status (Met/Partially met/Not met) retained for now for internal management reporting – rating framework under review."),
         ("Key dates (TBC)", f"Requests issued: Nov–Dec 2026 | Highlighted stories due: {STORIES_DUE} | Reporting template due: {DUE_DATE} | Support meetings: January 2027 | Sustainability Reporting Review Group: ~15 Feb 2027 | VCAG: 16 Feb & ~2 Mar 2027"),
         ("Tabs", "1. Requirements matrix – every S2030 qualitative indicator, owner and request\n"
@@ -579,8 +601,6 @@ def master(qual, quan, fac_rows, central_sections, sr25_all):
         for label, _ in secs:
             units.append((code, name, sr25name, label, "TBC", ""))
     units += [
-        ("Chancellery", "Advancement, Communications & Marketing; Global, Culture & Engagement; Education (incl. SASS); Indigenous", "Chancellery tab",
-         "—", "TBC", "No SR26 qualitative indicator currently names these units. SASS (Melbourne Plus) referenced for EE1(c). Confirm whether requests are needed."),
         ("TBC", "CGOP / CDEP / CDSS", "Not in SR25 master", "—", "TBC", "Structure changes TBC – confirm before requests are issued."),
     ]
     for k, u in enumerate(units):
@@ -679,13 +699,13 @@ def master(qual, quan, fac_rows, central_sections, sr25_all):
     # Issues log
     ws = wb.create_sheet("Issues log")
     title(ws, "End-2026 target status assessment and reporting", "Issues log")
-    hdr_row(ws, 4, ["#", "Date raised", "Issue / question", "Ref / unit", "Owner", "Proposed action", "Status"])
+    hdr_row(ws, 4, ["#", "Date raised", "Issue / question", "Impact", "Ref / unit", "Owner", "Proposed action", "Status"])
     issues = [
         ("Climate resilience maturity (CL3(a)) and Estate & infrastructure indicators – confirm owner and request with Gerard.", "CL3(a); EI1(a)–(d)", "Stefanus", "Meet Gerard", "Open"),
         ("Confirm whether CGOP, CDEP and CDSS structures have changed since the 2025 master spreadsheet stakeholder mapping.", "Stakeholder map", "Stefanus", "Confirm with team", "Open"),
         ("Business Services split into CIOG (AI) and ESG (nature & biodiversity, waste & circular economy, part of quant. climate leadership) – confirm contacts.", "CIOG; ESG", "TBC", "Confirm contacts", "Open"),
         ("Procurement sits with CFOG (RP1(a) procurement case studies routed to CFOG – Procurement although the Qual sheet names no stakeholder); estate planning centralised in CI&S – requests issued centrally, not to faculties.", "CFOG; CI&S", "—", "Noted", "Closed"),
-        ("Chancellery units had SR25 requests but no SR26 qualitative indicator names them – confirm if requests are needed.", "Stakeholder map", "TBC", "Decide", "Open"),
+        ("Chancellery units follow SR25: ACM, CGCE, Chancellery Education, SASS and Chancellery Indigenous receive requests for the SR26 indicators equivalent to their SR25 requests (see 3c triangulation).", "Stakeholder map", "Stefanus", "Confirm contacts", "Closed"),
         ("Legal & Risk asked for climate resilience maturity CL3(a), following SR25 (8a(i)/(ii): University Risk 16 Climate Change; flood emergency response plans). CL3(a) is also with CI&S (Gerard) – agree who leads.", "CL3(a); L&R; CI&S", "Stefanus", "Confirm with Gerard", "Open"),
         ("TR2(b) 'Documented progress of strategic initiatives, incl. Impact Accelerators' reuses the TR2(d) case-study wording and has no stakeholder in the Qual sheet – left as-is.", "TR2(b)", "TBC", "Review wording/owner", "Open"),
         ("Quantitative-only rows (no stakeholder in the Qual sheet) removed from the requirements matrix and moved to '2. Quant coverage'; Databook gaps requested in Tab 4 of the owning central unit's request.", "TR2(b); CL1(a)-(b); CL2(b); NB1(a); CE1-2; RP2; RI1(a)", "Stefanus", "Confirm owners and Databook coverage with Chris", "Open"),
@@ -695,11 +715,15 @@ def master(qual, quan, fac_rows, central_sections, sr25_all):
     ]
     from datetime import date
     for k, it in enumerate(issues):
-        vals = [k + 1, date(2026, 10, 5)] + list(it)
+        vals = [k + 1, date(2026, 10, 5), it[0], ""] + list(it[1:])  # Impact column as SR25 issues log
         for i, v in enumerate(vals):
             body(ws.cell(5 + k, 2 + i, v))
         ws.cell(5 + k, 3).number_format = "dd/mm/yyyy"
-    widths(ws, {"A": 4, "B": 5, "C": 12, "D": 70, "E": 24, "F": 18, "G": 26, "H": 10})
+    for r in range(5 + len(issues), 40):  # blank rows for new issues
+        for i in range(8):
+            body(ws.cell(r, 2 + i))
+    dv_list(ws, '"Open,In progress,Closed"', "I5:I39")
+    widths(ws, {"A": 4, "B": 5, "C": 12, "D": 60, "E": 30, "F": 24, "G": 18, "H": 26, "I": 10})
 
     project_tabs(wb)
     wb.move_sheet("Lists", offset=len(wb.sheetnames))
