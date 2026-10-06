@@ -13,7 +13,7 @@ YEARS = ["Baseline", "2023", "2024", "2025", "2026"]
 SKIP_SHEETS = {"Cover", "Overview and Contents", "References", "Estate & Infrastructure"}  # E&I tab is hidden, all 'TBC'
 
 # Suggested data owner by SR26 ref prefix (longest match wins). None = SST compiles, no request.
-OWNER = {"EE": None, "EE1(c)": "SASS", "EE1(d)": "ACM", "TR": "MRE", "CL1": "ESG", "CL2": None, "CL3": "CI&S", "NB1": "ESG", "NB2": "MRE",
+OWNER = {"EE": None, "EE1(c)": "SaSS", "EE1(d)": "SaSS", "TR": "MRE", "CL1": "ESG", "CL2": None, "CL3": "CI&S", "NB1": "ESG", "NB2": "MRE",
          "AI": "CIOG", "EI": "CI&S", "CE": "ESG", "RP": "CFOG", "RI": "CFOG", "EN": "CI&S"}
 OWNER_NOTE = {"EE": "SST",
               "CL2": "SST – compiled from faculty and CI&S responses"}

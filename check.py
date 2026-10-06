@@ -27,6 +27,8 @@ master_path = f"output/SR26 end-year reporting master spreadsheet - {V}.xlsx"
 M = load_workbook(master_path)
 req_files = sorted(glob.glob(f"output/*_requests/* - {V}.xlsx"))
 stale = [f for f in glob.glob("output/**/*.xlsx", recursive=True) if not f.endswith(f"{V}.xlsx")]
+check(bool(glob.glob(f"output/SR26 project management - {V}.xlsx")), "separate project management workbook exists")
+check(not any(n.startswith("P") and n[1].isdigit() for n in M.sheetnames), "no project (P0–P5) tabs left in the master")
 check(not stale, f"all output files carry the current version {V} ({len(req_files) + 1} files)")
 
 qual = B.read_qual()
@@ -34,11 +36,12 @@ B.DATABOOK = quant.read_databook(qual)
 purged = quant.quant_only_rows(qual)
 ref_ok = {q["ref"] for q in qual if q["row"] not in purged}
 units = list(B.PILOT_FACULTIES) + [c[0] for c in B.CENTRAL]
+UNCODE = {B.file_code(u): u for u in units}
 
 # ---- request workbooks: rows, tabs, links
 req_rows = {}
 for f in req_files:
-    code = f.split("/")[-1].split(" - ")[0].replace("CIandS", "CI&S").replace("LandR", "L&R")
+    code = UNCODE.get(f.split("/")[-1].split(" - ")[0], f.split("/")[-1].split(" - ")[0])
     wb = load_workbook(f)
     t = wb["1. Reporting template"]
     rows = [t.cell(r, 2).value for r in range(1, t.max_row + 1) if re.match(r"^[A-Z]{2}\d\(", str(t.cell(r, 2).value or ""))]
@@ -64,7 +67,7 @@ trk = {}
 for r in range(10, tr.max_row + 1):
     f = tr.cell(r, 7).value
     if f:
-        code = f.split(" - ")[0].replace("CIandS", "CI&S").replace("LandR", "L&R")
+        code = UNCODE.get(f.split(" - ")[0], f.split(" - ")[0])
         trk[code] = trk.get(code, 0) + (tr.cell(r, 6).value or 0)
         check(f.endswith(f"{V}.xlsx"), f"tracker file name for {code} is current version")
 for code, rows in req_rows.items():
@@ -137,7 +140,8 @@ for r in range(6, tri.max_row + 1):
 
 # ---- no stale hard-coded text
 alltext = " ".join(str(c.value) for ws in M for row in ws.iter_rows() for c in row if isinstance(c.value, str))
-for phrase in ["no SR26 request issued", "6 central units", "V0.1", "Quant – Databook mapping", "Stakeholder map & RASCI"]:
+for phrase in ["no SR26 request issued", "6 central units", "V0.1", "Quant – Databook mapping", "Stakeholder map & RASCI",
+               "P0 Project overview"]:
     check(phrase not in alltext, f"no stale text '{phrase}'")
 check(f"DRAFT {V}" in alltext, f"Read me shows {V}")
 

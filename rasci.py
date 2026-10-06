@@ -10,7 +10,7 @@ SR25_CONTACT = {"ABP": "Gerard", "ARTS": "Rose", "FBE": "Katie", "SCI": "Katie",
                 "CI&S – Estate Planning & Development": "Gerard and Davina", "CI&S – Sustainability Strategy": "Director",
                 "CFOG – Procurement": "Chris", "CFOG – Treasury & Investments": "Chris", "ESG": "All", "CIOG": "TBC",
                 "MRE": "Director", "L&R": "Gerard", "Legal & Risk": "Gerard", "SST": "All", "CH*": "Director",
-                "ACM": "Rose", "CGCE": "Gerard", "CEDU": "Katie", "SASS": "Rose", "CIND": "Gerard", "FAC*": "Director", "COO*": "Director"}
+                "AC&M": "Rose", "GCE": "Gerard", "Education": "Katie", "SaSS": "Rose", "Indigenous": "Gerard", "FAC*": "Director", "COO*": "Director"}
 CODES = [("A", "Accountable"), ("A and R", "Accountable and Responsible"), ("R", "Responsible – narrative request"),
          ("R (quant)", "Responsible – figures for the Databook (Tab 4)"), ("R (compile)", "SST compiles from other responses / no request"),
          ("S", "Support"), ("C", "Consulted"), ("I", "Informed")]
@@ -41,7 +41,7 @@ def rasci_tab(wb, qual, coverage, faculties, central):
     # ---- columns: (portfolio, area label, key, is_consolidated)
     cols = [("Faculty", "Faculties – pilot (all)", "FAC*", True)]
     cols += [("Faculty", f"{code} – {name.replace('Faculty of ', '')}", code, False) for code, name in faculties.items()]
-    chancellery = {"MRE", "ACM", "CGCE", "CEDU", "SASS", "CIND"}
+    chancellery = {"MRE", "AC&M", "GCE", "Education", "SaSS", "Indigenous"}
     for port, star, members in (("COO portfolio", "COO*", [c for c in central if c[0] not in chancellery]),
                                 ("Chancellery", "CH*", [c for c in central if c[0] in chancellery])):
         cols.append((port, f"{port} (all)", star, True))
@@ -82,7 +82,8 @@ def rasci_tab(wb, qual, coverage, faculties, central):
 
     def codes_for(q):
         d = {}
-        if "Faculties" in q["stake"]:
+        import build as B
+        if B.asks_faculties(q):
             for code in faculties:
                 d[code] = "R"
         for code, name, _, secs in central:
@@ -205,17 +206,17 @@ SR25_AREA = {
     "Business and Economics / MBS": "FBE – Business and Economics", "Science": "SCI – Science",
     "Education": "Non-pilot faculties", "Engineering and IT": "Non-pilot faculties", "Fine Arts and Music": "Non-pilot faculties",
     "Law": "Non-pilot faculties", "MDHS": "Non-pilot faculties",
-    "Academic": "CEDU – Chancellery Education", "Indigenous": "CIND – Chancellery Indigenous",
-    "People strategy?": "Not in SR26: People strategy", "Advancement, Communications & Marketing": "ACM – Advancement, Communications & Marketing",
+    "Academic": "Education – Chancellery Education", "Indigenous": "Indigenous – Chancellery Indigenous",
+    "People strategy?": "Not in SR26: People strategy", "Advancement, Communications & Marketing": "AC&M – Advancement, Communication and Marketing",
     "Chancellery Research and Enterprise": "MRE – Research",
-    "Chancellery Global": "CGCE – Global, Culture & Engagement",
-    "Community and cultural partnerships": "CGCE – Global, Culture & Engagement",
+    "Chancellery Global": "GCE – Global, Culture and Engagement",
+    "Community and cultural partnerships": "GCE – Global, Culture and Engagement",
     "CD Sustainability Strategy": "CI&S – Sustainability Strategy", "CD Treasury & Investments": "CFOG – Treasury & Investments",
     "CD Estate (development,strategy,planning and perfomance)": "CI&S – Estate Planning & Development",
     "CD EPMO and investment office": "Not in SR26: EPMO & investment office", "CFOG (Finance)": "Not in SR26: CFOG Finance",
     "CFOG (Procurement)": "CFOG – Procurement", "Campus Management - Sustainability Delivery": "ESG – Campus Operations & Sustainability Delivery",
     "Campus management - project delivery": "ESG – Campus Operations & Sustainability Delivery",
-    "Student and scholarly services": "SASS – Student & Scholarly Services", "RIC": "Not in SR26: RIC",
+    "Student and scholarly services": "SaSS – Student and Scholarly Services", "RIC": "Not in SR26: RIC",
     "Legal and Risk": "Legal & Risk – Risk & resilience", "EPG": "Not in SR26: EPG",
     "University governance": "Not in SR26: University governance", "Academic Board": "Not in SR26: Academic Board",
 }
@@ -275,7 +276,12 @@ def triangulation_tab(wb, qual):
         new26 = sorted(set(s26) - set(s25))
         for a in only25:
             gap_count[a] = gap_count.get(a, 0) + 1
-        if not tg:
+        import build as B
+        if q["row"] in B.EXCLUSIVE:
+            action = f"Team decision (v0.7): asked of {B.EXCLUSIVE[q['row']]} only."
+        elif q["row"] in B.FACULTY_MERGED:
+            action = "Team decision (v0.7): for faculties, covered by the merged EE1(a) question."
+        elif not tg:
             action = "New indicator – no SR25 equivalent; SR26 roles stand."
         elif not only25:
             action = "Consistent with SR25." + (" New areas added in SR26." if new26 else "")

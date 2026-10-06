@@ -26,7 +26,7 @@ SRC = ROOT / "source"
 OUT = ROOT / "output"
 
 # ---------------------------------------------------------------- settings
-VERSION = "v0.6"  # bump on every revision; appears in file names and Read me
+VERSION = "v0.7"  # bump on every revision; appears in file names and Read me
 VERSION_HISTORY = [
     ("v0.1", "First draft: requirements matrix, pilot faculty and central-unit requests, tracker, evidence register."),
     ("v0.2", "SR25-style faculty wording and 'How SST will use'; scoring/T1/T2 formulas; Legal & Risk; project tabs; linked SR25 responses tab."),
@@ -34,6 +34,7 @@ VERSION_HISTORY = [
     ("v0.4", "RASCI rebuilt to the SR25 standard ('3b. RASCI matrix'): indicator hierarchy, consolidated portfolios, SST contacts, A/R/S/C/I codes, summary counts."),
     ("v0.5", "'3c. RASCI triangulation': each SR26 indicator compared with the SR25 RASCI (equivalent targets, translated areas), gaps and suggested actions."),
     ("v0.6", "Chancellery units added following SR25 (ACM, CGCE, Chancellery Education, SASS, Chancellery Indigenous) with linked SR25 responses; cross-tab consistency check (check.py); Impact column added to Issues log (as SR25)."),
+    ("v0.7", "Team review: Chancellery units as separate tabs (AC&M, MRE, GCE, Education, SaSS, Indigenous); faculty requests cut down (ABP walkthrough) – EE1(a)+(c) merged, 'any examples' wording, alumni to SaSS, CL2(a)/(c) to AC&M, TR3(a)/(c)/(d) to MRE; simpler evidence register; highlighted stories compiled per unit with SST priority-area columns; project tabs moved to a separate project workbook."),
 ]
 DUE_DATE = "Friday 15 January 2027 (TBC)"
 STORIES_DUE = "Friday 4 December 2026 (TBC)"
@@ -70,17 +71,17 @@ CENTRAL = [
     ("MRE", "Melbourne Research and Enterprise (MRE)",
      "Chancellery Research and Enterprise",
      [("MRE – Research (incl. MBI – TBC)", lambda r: "MRE" in r["stake"] or "MBI" in r["stake"])]),
-    # Chancellery units, following SR25 (Chancellery tab sections and RASCI roles), mapped to equivalent SR26 indicators
-    ("ACM", "Advancement, Communications & Marketing (ACM)", "Chancellery – Advancement, Communications & Marketing",
-     [("ACM – Advancement, Communications & Marketing", lambda r: r["row"] in (11, 16, 29, 54))]),
-    ("CGCE", "Chancellery Global, Culture & Engagement (CGCE)", "Chancellery – Global, Culture and Engagement",
-     [("CGCE – Global, Culture & Engagement", lambda r: r["row"] in (52, 54))]),
-    ("CEDU", "Chancellery Education", "Chancellery – Chancellery Education",
-     [("CEDU – Chancellery Education", lambda r: r["row"] in (8, 9, 11, 54))]),
-    ("SASS", "Student & Scholarly Services (SASS)", "Chancellery – Student and scholarly services",
-     [("SASS – Student & Scholarly Services", lambda r: r["row"] == 10)]),
-    ("CIND", "Chancellery Indigenous", "Chancellery – Chancellery Indigenous",
-     [("CIND – Chancellery Indigenous", lambda r: r["row"] == 52)]),
+    # Chancellery units – each reported separately (SR25 Chancellery tab sections), named as the team uses them
+    ("AC&M", "Advancement, Communication and Marketing (AC&M)", "Chancellery – Advancement, Communications & Marketing",
+     [("AC&M – Advancement, Communication and Marketing", lambda r: r["row"] in (16, 54))]),
+    ("GCE", "Global, Culture and Engagement (GCE)", "Chancellery – Global, Culture and Engagement",
+     [("GCE – Global, Culture and Engagement", lambda r: r["row"] in (52, 54))]),
+    ("Education", "Chancellery Education", "Chancellery – Chancellery Education",
+     [("Education – Chancellery Education", lambda r: r["row"] in (8, 9, 54))]),
+    ("SaSS", "Student and Scholarly Services (SaSS)", "Chancellery – Student and scholarly services",
+     [("SaSS – Student and Scholarly Services", lambda r: r["row"] == 10)]),
+    ("Indigenous", "Chancellery Indigenous", "Chancellery – Chancellery Indigenous",
+     [("Indigenous – Chancellery Indigenous", lambda r: r["row"] == 52)]),
     # SR25 Legal and Risk reported 8a(i)/(ii) climate change preparedness (University Risk 16, flood emergency plans)
     ("L&R", "Legal and Risk", "Legal and Risk",
      [("Legal & Risk – Risk & resilience", lambda r: r["row"] == 30)]),
@@ -210,6 +211,32 @@ def read_quan(qual_by_row):
     return out
 
 
+# Indicators asked of one unit only (team review, ABP walkthrough): Qual row -> unit code
+EXCLUSIVE = {11: "SaSS",                      # EE1(d) alumni
+             27: "AC&M", 29: "AC&M",          # CL2(a), CL2(c) climate communications / mapping
+             20: "MRE", 22: "MRE", 23: "MRE"}  # TR3(a), (c), (d) research systems, culture, assessment
+FACULTY_MERGED = {10: 8}  # EE1(c) is covered by the faculty EE1(a) question
+
+
+def asks_faculties(r):
+    """True if the pilot faculties receive a request for this Qual row."""
+    return "Faculties" in r["stake"] and r["row"] not in EXCLUSIVE and r["row"] not in FACULTY_MERGED
+
+
+def _exclusive(m, code, is_first):
+    """Exclusive rows go to their owner's first section only; other rows use the section's own matcher."""
+    return lambda r: (EXCLUSIVE[r["row"]] == code and is_first) if r["row"] in EXCLUSIVE else m(r)
+
+
+for _code, _name, _sr25, _secs in CENTRAL:
+    _secs[:] = [(lab, _exclusive(m, _code, k == 0)) for k, (lab, m) in enumerate(_secs)]
+
+
+def file_code(code):
+    """File-name-safe unit code."""
+    return {"CI&S": "CIandS", "L&R": "LandR", "AC&M": "ACM"}.get(code, code)
+
+
 # SR25 master tab/section holding each unit's end-2025 responses (None = no SR25 equivalent)
 SR25_SOURCES = {
     "CI&S": ("CD", None),
@@ -217,11 +244,11 @@ SR25_SOURCES = {
     "ESG": ("Business Services", None),
     "CIOG": None,  # AI not requested in SR25
     "MRE": ("Chancellery", "Research and Enterprise"),
-    "ACM": ("Chancellery", "Advancement"),
-    "CGCE": ("Chancellery", "Global, Culture"),
-    "CEDU": ("Chancellery", "Chancellery Education"),
-    "SASS": ("Chancellery", "Student and scholarly"),
-    "CIND": ("Chancellery", "Chancellery Indigenous"),
+    "AC&M": ("Chancellery", "Advancement"),
+    "GCE": ("Chancellery", "Global, Culture"),
+    "Education": ("Chancellery", "Chancellery Education"),
+    "SaSS": ("Chancellery", "Student and scholarly"),
+    "Indigenous": ("Chancellery", "Chancellery Indigenous"),
     "L&R": ("Legal and Risk", None),
 }
 # Central units: S2030 Qual row -> closest SR25 (SP2030) ref answered by that unit
@@ -232,11 +259,11 @@ CENTRAL_SR25_MAP = {
     "CIOG": {},
     "MRE": {12: "5a(i)", 16: "5b(ii)", 18: "5b(iii)", 20: "5c(i)", 21: "5c(ii)", 53: "2a"},
     "L&R": {30: "8a(i)"},
-    "ACM": {11: "4b(iii)", 16: "5b(ii)", 29: "5b(ii)", 54: "3e"},
-    "CGCE": {54: "7c(ii)"},
-    "CEDU": {8: "4a(ii)", 11: "4b(i)", 54: "3a(ii)"},
-    "SASS": {10: "3b(vii)"},
-    "CIND": {52: "6a"},
+    "AC&M": {16: "5b(ii)", 29: "5b(ii)", 54: "3e"},
+    "GCE": {54: "7c(ii)"},
+    "Education": {8: "4a(ii)", 54: "3a(ii)"},
+    "SaSS": {10: "3b(vii)", 11: "3b(ii)"},
+    "Indigenous": {52: "6a"},
 }
 SR25_COLS = {"status": "Confirm end-20", "opt1": "OPTION 1", "opt2": "OPTION 2", "support": "Supporting inf"}
 
@@ -454,6 +481,57 @@ def stories_sheet(ws, unit=None):
     return 10, 10 + n - 1
 
 
+PRIORITY_AREAS = ["Exceptional education", "Transformational research", "Climate leadership", "Nature and biodiversity",
+                  "Responsible AI", "Estate and infrastructure", "Circular economy", "Responsible procurement",
+                  "Modern slavery and human rights", "Responsible investments", "Enablers", "Not priority-area specific"]
+
+
+def stories_master(wb):
+    """One block of 3 story slots per unit, in the same order as each request's Tab 2 rows 10–12, so slots can be
+    pasted now and linked to the request files in the Teams version. SST columns judge the priority area."""
+    ws = wb.create_sheet("Highlighted stories")
+    title(ws, "End-2026 target status assessment and reporting", "Highlighted stories – compiled")
+    ws["B3"] = ("Each faculty/unit has 3 story slots, matching rows 10–12 of Tab 2 in its request workbook. Copy (or, in the Teams "
+                "version, link) the respondent columns; SST completes the gold columns to assign priority areas and shortlist.")
+    ws["B3"].alignment = WRAP; ws.merge_cells("B3:N3"); ws.row_dimensions[3].height = 32
+    lst = wb["Lists"]; lst["L1"] = "Priority area"
+    for i, pa in enumerate(PRIORITY_AREAS):
+        lst.cell(2 + i, 12, pa)
+    pa_rng = f"=Lists!$L$2:$L${1 + len(PRIORITY_AREAS)}"
+    resp = ["Faculty / unit", "Story #"] + STORY_COLS
+    sst = ["SST: primary priority area", "SST: secondary priority area", "SST: related S2030 indicator ref",
+           "SST: use in report?", "SST: permission to publish?", "SST notes"]
+    hdr_row(ws, 5, resp + sst)
+    for i in range(len(resp), len(resp) + len(sst)):
+        ws.cell(5, 2 + i).fill = GOLD; ws.cell(5, 2 + i).font = Font(name="Aptos", size=12, bold=True, color=DARK)
+    units = [(c, f"{c} – {n}") for c, n in PILOT_FACULTIES.items()] + [(c[0], c[1]) for c in CENTRAL]
+    r = 6
+    for code, name in units:
+        for k in range(3):
+            vals = [name if k == 0 else "", k + 1] + [""] * (len(resp) - 2 + len(sst))
+            for i, v in enumerate(vals):
+                body(ws.cell(r, 2 + i, v), REFF if i < 2 else None, bold=i == 0)
+            ws.row_dimensions[r].height = 60
+            r += 1
+    last = r - 1
+    c0 = 2 + len(resp)
+    L = lambda k: get_column_letter(c0 + k)
+    dv_list(ws, pa_rng, f"{L(0)}6:{L(1)}{last}")
+    dv_list(ws, '"Shortlist,Maybe,No"', f"{L(3)}6:{L(3)}{last}")
+    dv_list(ws, '"Yes,No,TBC"', f"{L(4)}6:{L(4)}{last}")
+    # summary: stories per priority area
+    r = last + 3
+    ws.cell(r, 2, "Stories by priority area (SST primary)").font = Font(name="Aptos", bold=True, size=14, color=NAVY)
+    hdr_row(ws, r + 1, ["Priority area", "Stories", "Shortlisted"])
+    for i, pa in enumerate(PRIORITY_AREAS):
+        rr = r + 2 + i
+        body(ws.cell(rr, 2, pa))
+        body(ws.cell(rr, 3, f'=COUNTIF(${L(0)}$6:${L(0)}${last},B{rr})'))
+        body(ws.cell(rr, 4, f'=COUNTIFS(${L(0)}$6:${L(0)}${last},B{rr},${L(3)}$6:${L(3)}${last},"Shortlist")'))
+    widths(ws, {"A": 4, "B": 30, "C": 8, "D": 26, "E": 50, "F": 22, "G": 22, "H": 26, L(0): 22, L(1): 22, L(2): 14, L(3): 13, L(4): 13, L(5): 30})
+    ws.freeze_panes = "D6"
+
+
 # ---------------------------------------------------------------- per-unit request workbook
 SR25_SHEET = "3. SR25 responses"
 
@@ -512,7 +590,7 @@ def request_workbook(code, name, sections, sr25, ref_map=None, sr25_sections=Non
     order = ["1. Reporting template", "2. OPTIONAL highlighted stories", SR25_SHEET, "4. Quantitative data", "Lists"]
     wb._sheets.sort(key=lambda w: order.index(w.title))
     wb.active = 0
-    safe = code.replace("&", "and")
+    safe = file_code(code)
     path = OUT / folder / f"{safe} - end-2026 sustainability reporting request - {VERSION}.xlsx"
     path.parent.mkdir(parents=True, exist_ok=True)
     wb.save(path)
@@ -548,7 +626,7 @@ def master(qual, quan, fac_rows, central_sections, sr25_all):
                  "Request wording log – original S2030 wording vs tailored faculty request wording\n"
                  "Evidence register – source, evidence, limitations and owner confirmation for every material claim\n"
                  "Issues log – open questions, TBCs and decisions\n"
-                 "P0–P5 – project tabs: overview & SR25 lessons, plan on a page, timeline/RASCI Gantt, comms+web to-do, content checklist, page index"),
+                 "Project management tabs (overview, plan, timeline, comms/web to-do, content checklist, page index) are in the separate 'SR26 project management' workbook"),
         ("Refs", "Refs are new SR26 codes: priority-area code + target number + indicator letter (e.g. EE1(a) = Exceptional education, target 1, indicator a). 'Related SR25 ref' links to the closest SP2030 (2025) target where one exists."),
         ("Regenerating", "Workbooks are generated by build.py in the repository. Edit the settings at the top (due dates, pilot faculties, unit mapping) and re-run to produce request workbooks for additional faculties/units."),
         ("Version history", "\n".join(f"{v}: {t}" for v, t in VERSION_HISTORY)),
@@ -573,7 +651,7 @@ def master(qual, quan, fac_rows, central_sections, sr25_all):
     for k, r in enumerate(qual):
         rr = 6 + k
         to = [u[0] for u in CENTRAL for s in u[3] if s[1](r)]
-        if "Faculties" in r["stake"]:
+        if asks_faculties(r):
             to = ["Faculties (pilot)"] + to
         channel = "Tailored request" if to else "TBC"
         qc = qcomp.get(r["ref"])
@@ -624,7 +702,7 @@ def master(qual, quan, fac_rows, central_sections, sr25_all):
     for code, name, _, secs in CENTRAL:
         for label, rows in central_sections[code]:
             n += 1
-            track.append((f"C{n}", "Central", label, len(rows), f"{code.replace('&', 'and')} - end-2026 sustainability reporting request - {VERSION}.xlsx"))
+            track.append((f"C{n}", "Central", label, len(rows), f"{file_code(code)} - end-2026 sustainability reporting request - {VERSION}.xlsx"))
     for k, t in enumerate(track):
         rr = 10 + k
         vals = [t[0], t[1], t[2], "TBC", t[3], t[4], None, "15/01/2027", f"=IF(I{rr}=\"\",\"\",I{rr}-7)", "", None, "", "Not sent",
@@ -675,25 +753,23 @@ def master(qual, quan, fac_rows, central_sections, sr25_all):
     scoring_tabs(wb, qual, reg)
     wording_log(wb, fac_rows)
 
-    # Highlighted stories
-    st = wb.create_sheet("Highlighted stories")
-    stories_sheet(st, unit=None)
+    # Highlighted stories – compiled from every request's Tab 2, with SST assessment columns
+    stories_master(wb)
 
-    # Evidence register
+    # Evidence register – kept simple: one line per material claim or figure used in the report
     ws = wb.create_sheet("Evidence register")
     title(ws, "End-2026 target status assessment and reporting", "Evidence register")
-    ws["B3"] = ("Every material figure or claim needs a named owner, definition, source, reporting boundary, period, quality note and confirmation record (SR26 approach – Data quality).")
+    ws["B3"] = "One line per material claim or figure used in the report: what it supports, where the evidence is, and whether the owner has confirmed it."
     ws["B3"].font = Font(name="Aptos", italic=True)
-    cols = ["Evidence ID", "Ref", "Indicator", "Faculty/Portfolio", "Claim / figure used in report", "Evidence description",
-            "Link / file location", "Source system", "Reporting period", "Reporting boundary", "Limitations / quality note",
-            "Data owner (name, role)", "Owner confirmed?", "Confirmation date", "SST reviewer", "Report section", "Databook aligned?", "Status / notes"]
+    cols = ["Evidence ID", "Ref", "Faculty / unit", "Claim or figure in the report", "Evidence (link or file)", "Source",
+            "Owner confirmed?", "Notes"]
     hdr_row(ws, 5, cols)
     for r in range(6, 206):
-        ws.cell(r, 2, f'=IF(C{r}="","","EV-"&TEXT(ROW()-5,"000"))')
+        ws.cell(r, 2, f'=IF(E{r}="","","EV-"&TEXT(ROW()-5,"000"))')
         for c in range(2, 2 + len(cols)):
             body(ws.cell(r, c))
-    dv_list(ws, "=Lists!$E$2:$E$4", "N6:N205"); dv_list(ws, "=Lists!$E$2:$E$4", "R6:R205")
-    widths(ws, dict(zip("BCDEFGHIJKLMNOPQRS", [10, 9, 30, 18, 40, 36, 30, 16, 12, 16, 30, 22, 11, 13, 14, 18, 11, 26])))
+    dv_list(ws, "=Lists!$E$2:$E$4", "H6:H205")
+    widths(ws, dict(zip("BCDEFGHI", [10, 9, 18, 50, 40, 20, 12, 30])))
     ws.freeze_panes = "D6"
 
     # Issues log
@@ -705,7 +781,8 @@ def master(qual, quan, fac_rows, central_sections, sr25_all):
         ("Confirm whether CGOP, CDEP and CDSS structures have changed since the 2025 master spreadsheet stakeholder mapping.", "Stakeholder map", "Stefanus", "Confirm with team", "Open"),
         ("Business Services split into CIOG (AI) and ESG (nature & biodiversity, waste & circular economy, part of quant. climate leadership) – confirm contacts.", "CIOG; ESG", "TBC", "Confirm contacts", "Open"),
         ("Procurement sits with CFOG (RP1(a) procurement case studies routed to CFOG – Procurement although the Qual sheet names no stakeholder); estate planning centralised in CI&S – requests issued centrally, not to faculties.", "CFOG; CI&S", "—", "Noted", "Closed"),
-        ("Chancellery units follow SR25: ACM, CGCE, Chancellery Education, SASS and Chancellery Indigenous receive requests for the SR26 indicators equivalent to their SR25 requests (see 3c triangulation).", "Stakeholder map", "Stefanus", "Confirm contacts", "Closed"),
+        ("Chancellery units reported separately, as SR25: AC&M, MRE, GCE, Education, SaSS and Indigenous each have their own request and master tab. Alumni (EE1(d)) asked of SaSS only.", "Stakeholder map", "Stefanus", "Confirm contacts", "Closed"),
+        ("Faculty requests cut down after ABP walkthrough: EE1(a)+(c) merged; CL2(a)/(c) to AC&M only; TR3(a)/(c)/(d) to MRE only; EE1(d) to SaSS only. Wattle Fellowship to be asked directly (not tracked in master).", "Faculties", "Stefanus", "Confirm with team; apply to other faculties", "Open"),
         ("Legal & Risk asked for climate resilience maturity CL3(a), following SR25 (8a(i)/(ii): University Risk 16 Climate Change; flood emergency response plans). CL3(a) is also with CI&S (Gerard) – agree who leads.", "CL3(a); L&R; CI&S", "Stefanus", "Confirm with Gerard", "Open"),
         ("TR2(b) 'Documented progress of strategic initiatives, incl. Impact Accelerators' reuses the TR2(d) case-study wording and has no stakeholder in the Qual sheet – left as-is.", "TR2(b)", "TBC", "Review wording/owner", "Open"),
         ("Quantitative-only rows (no stakeholder in the Qual sheet) removed from the requirements matrix and moved to '2. Quant coverage'; Databook gaps requested in Tab 4 of the owning central unit's request.", "TR2(b); CL1(a)-(b); CL2(b); NB1(a); CE1-2; RP2; RI1(a)", "Stefanus", "Confirm owners and Databook coverage with Chris", "Open"),
@@ -725,7 +802,6 @@ def master(qual, quan, fac_rows, central_sections, sr25_all):
     dv_list(ws, '"Open,In progress,Closed"', "I5:I39")
     widths(ws, {"A": 4, "B": 5, "C": 12, "D": 60, "E": 30, "F": 24, "G": 18, "H": 26, "I": 10})
 
-    project_tabs(wb)
     wb.move_sheet("Lists", offset=len(wb.sheetnames))
     OUT.mkdir(exist_ok=True)
     p = OUT / f"SR26 end-year reporting master spreadsheet - {VERSION}.xlsx"
@@ -975,7 +1051,7 @@ def main():
     DATABOOK = quant.read_databook(qual)
     COVERAGE = quant.coverage(qual, quan, DATABOOK)
     sr25 = read_sr25_faculty()
-    fac_rows = [r for r in qual if "Faculties" in r["stake"]]
+    fac_rows = [r for r in qual if asks_faculties(r)]
     central_sections = {code: [(label, [r for r in qual if m(r)]) for label, m in secs] for code, _, _, secs in CENTRAL}
     print("Qual indicators:", len(qual), "| faculty rows:", len(fac_rows), "| quant rows:", len(quan))
     for code, name in PILOT_FACULTIES.items():
@@ -991,6 +1067,14 @@ def main():
     purged = quant.quant_only_rows(qual)
     print("  quant-only rows removed from requirements matrix:", [r["ref"] for r in qual if r["row"] in purged])
     print(" ", master([r for r in qual if r["row"] not in purged], quan, fac_rows, central_sections, sr25))
+    pwb = Workbook()
+    lists_sheet(pwb)
+    project_tabs(pwb)
+    del pwb[pwb.sheetnames[0]]
+    pwb.move_sheet("Lists", offset=len(pwb.sheetnames))
+    pwb.active = 0
+    pwb.save(OUT / f"SR26 project management - {VERSION}.xlsx")
+    print("  SR26 project management -", VERSION)
 
 
 if __name__ == "__main__":
