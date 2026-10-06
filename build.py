@@ -503,6 +503,7 @@ def master(qual, quan, fac_rows, central_sections, sr25_all):
                  "Highlighted stories – consolidated optional stories and case-study shortlist\n"
                  "A1. Data scoring – auto-pulls every unit's responses per indicator and scores target status (SR25 method)\n"
                  "0.5 Target Check – which units were asked about each indicator\n"
+                 "T1. Manual target review – every indicator with responses from the units asked, side by side, plus reviewer notes\n"
                  "T2. Single target review – pick an indicator and see all units' responses and the scored status\n"
                  "Request wording log – original S2030 wording vs tailored faculty request wording\n"
                  "Evidence register – source, evidence, limitations and owner confirmation for every material claim\n"
@@ -833,6 +834,56 @@ def scoring_tabs(wb, qual, reg):
         tc.column_dimensions[get_column_letter(3 + i)].width = 14
     tc.freeze_panes = "C7"
     last_tc = 6 + len(qual)
+
+    # ---- T1. Manual target review: every indicator, only the units asked, side by side (base review sheet)
+    t1 = wb.create_sheet("T1. Manual target review")
+    title(t1, "End-2026 target status assessment and reporting", "T1. Manual target review")
+    t1["C4"] = "Description"; t1["C4"].font = Font(name="Aptos", bold=True)
+    t1["D4"] = ("Review of individual unit responses for every indicator – only the units asked about each indicator are shown. "
+                "Values come from A1 (do not type in grey cells); record your review in the 'Reviewer notes' column. "
+                "Use T2 to focus on a single indicator.")
+    t1["D4"].alignment = WRAP; t1.merge_cells("D4:J5"); t1.row_dimensions[4].height = 30
+    asked = {}
+    for i, (k, sheet, r0, last) in enumerate(units):
+        for rr in range(r0, last + 1):
+            v = wb[sheet].cell(rr, 2).value
+            if v:
+                asked.setdefault(v, []).append(i)
+    maxu = max((len(v) for v in asked.values()), default=1)
+    ucol = lambda j: get_column_letter(5 + j)
+    sc = [get_column_letter(5 + maxu + i) for i in range(3)]
+    hdr_row(t1, 7, ["Ref.", "Indicator", "Target progress"] + [f"Unit {j + 1}" for j in range(maxu)] +
+            ["Target score (text)", "Threshold status (SR25 rule)", "Reviewer notes"])
+    r = 8
+    for q in qual:
+        idx = asked.get(q["ref"], [])
+        if not idx:
+            continue
+        a1 = status_rows[q["ref"]]
+        body(t1.cell(r, 2, q["ref"]), REFF, bold=True)
+        body(t1.cell(r, 3, q["indicator"]), REFF)
+        body(t1.cell(r, 4, "Unit"), GREY2, bold=True)
+        for j, ui in enumerate(idx):
+            body(t1.cell(r, 5 + j, units[ui][0]), GREY2, bold=True)
+        for col, h in zip(sc[:2], ["Target score (text)", "Threshold status (SR25 rule)"]):
+            c = t1[f"{col}{r}"]; c.value = f"='A1. Data scoring'!{C[h]}{a1}"; body(c, PatternFill("solid", fgColor="E2EFDA"), bold=True)
+        body(t1[f"{sc[2]}{r}"])
+        for fi, (fname, _) in enumerate(FIELDS):
+            rr = r + 1 + fi
+            body(t1.cell(rr, 2, q["ref"])); t1.cell(rr, 2).font = Font(name="Aptos Narrow", size=9, color="808080")
+            body(t1.cell(rr, 4, fname), bold=True)
+            for j, ui in enumerate(idx):
+                body(t1.cell(rr, 5 + j, f"='A1. Data scoring'!{uc(ui)}{a1 + fi}"), GREY)
+            body(t1[f"{sc[2]}{rr}"])
+            t1.row_dimensions[rr].height = 60 if fi in (1, 2) else 18
+        t1.merge_cells(start_row=r + 1, start_column=3, end_row=r + len(FIELDS), end_column=3)
+        t1.merge_cells(f"{sc[2]}{r}:{sc[2]}{r + len(FIELDS)}")
+        r += len(FIELDS) + 2
+    widths(t1, {"A": 4, "B": 9, "C": 34, "D": 26, sc[0]: 16, sc[1]: 16, sc[2]: 40})
+    for j in range(maxu):
+        t1.column_dimensions[ucol(j)].width = 30
+    t1.freeze_panes = "E8"
+    t1.auto_filter.ref = f"B7:{sc[2]}{r}"
 
     # ---- T2. Single target review
     t2 = wb.create_sheet("T2. Single target review")
