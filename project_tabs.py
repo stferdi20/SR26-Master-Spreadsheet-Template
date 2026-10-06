@@ -204,7 +204,7 @@ def project_tabs(wb):
     B.widths(ws, {"A": 4, "B": 26, "C": 30, "D": 14, "E": 12, "F": 14, "G": 20, "H": 50, "I": 11, "J": 36})
 
     # ---------------- P4 Content-contributor checklist
-    ws = wb.create_sheet("P4 Content-contributor checklist")
+    ws = wb.create_sheet("P4 Content checklist")
     B.title(ws, "2026 Sustainability Report", "P4. Content contributor checklist")
     ws["B4"] = "Stakeholder management for report content: review by contributors, images, credits and captions, post-launch follow-up."
     cols = ["Report section", "Case study", "Activity areas", "Review required? (Y/N)", "Content contributors", "Project team liaison",
@@ -218,7 +218,12 @@ def project_tabs(wb):
     for k in range(60):
         for i in range(len(cols)):
             B.body(ws.cell(7 + k, 2 + i))
-    B.dv_list(ws, '"' + ",".join(pas + ["Report introduction", "Our impact"]) + '"', "B7:B66")
+    # list kept on the Lists sheet: an inline list over 255 characters stops Excel opening the file
+    sections = ["Report introduction", "Our impact"] + pas
+    lst = wb["Lists"]; lst["K1"] = "Report section"
+    for i, v in enumerate(sections):
+        lst.cell(2 + i, 11, v)
+    B.dv_list(ws, f"=Lists!$K$2:$K${1 + len(sections)}", "B7:B66")
     for col in "EIJKLQU":
         B.dv_list(ws, '"Y,N"', f"{col}7:{col}66")
     B.widths(ws, {"A": 4, "B": 24, "C": 34, "D": 18})
