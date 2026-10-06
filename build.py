@@ -17,6 +17,7 @@ from openpyxl.worksheet.datavalidation import DataValidation
 from openpyxl.worksheet.hyperlink import Hyperlink
 
 from faculty_requests import USE, faculty_request
+import quant
 
 warnings.filterwarnings("ignore")
 ROOT = Path(__file__).parent
@@ -294,7 +295,7 @@ WIDTHS = {"A": 4, "B": 10, "C": 16, "D": 38, "E": 38, "F": 50, "G": 34, "H": 11,
           "L": 22, "M": 48, "N": 48, "O": 30, "P": 30, "Q": 20, "R": 24}
 
 
-def block(ws, top, unit_label, rows, sr25, lists, reg=None, key=None, ref_map=None, tailor=None, anchors=None):
+def block(ws, top, unit_label, rows, sr25, lists, reg=None, key=None, ref_map=None, tailor=None, anchors=None, quant_refs=()):
     """Write a reporting block at row `top`. Returns next free row.
 
     sr25: {SR25 ref: (status, response, links)} or None (no SR25 equivalent). ref_map: Qual row -> SR25 ref
@@ -332,6 +333,8 @@ def block(ws, top, unit_label, rows, sr25, lists, reg=None, key=None, ref_map=No
         if sr25 is not None:
             request = faculty_request(r["row"], sref, prev[0], prev[1], request, tailor=tailor,
                                       linked=bool(anchors and sref in anchors))
+        if r["ref"] in quant_refs:
+            request += "\n\nQuantitative figures for this indicator are requested separately in Tab 4 (Quantitative data)."
         href = sref if sref else ("N/A – new indicator" if sr25 is not None else "")
         vals = [r["ref"], r["pa"], r["target"], r["indicator"], request, use_text(r), href, prev[0], prev[1], prev[2]]
         for i, v in enumerate(vals):
@@ -465,16 +468,19 @@ def sr25_sheet(wb, name, sr25_sections, ref_map, qual_by_row):
 def request_workbook(code, name, sections, sr25, ref_map=None, sr25_sections=None, qual_by_row=None, folder="faculty_requests"):
     wb = Workbook(); ws = wb.active; ws.title = "1. Reporting template"
     lists = lists_sheet(wb)
+    quant_refs = quant.unit_quant_tab(wb, code, name, quant.owned_points(DATABOOK, code), DUE_DATE) if folder != "faculty_requests" else set()
     anchors = sr25_sheet(wb, name, sr25_sections or [], ref_map if ref_map is not None else SR25_MAP, qual_by_row or {})
     title(ws, "End-2026 target status assessment and reporting", "End-2026 target status confirmation and reporting")
     setup_block_sheet(ws); instructions(ws, name)
     top = 11
     for label, rows in sections:
-        top = block(ws, top, label, rows, sr25, lists, ref_map=ref_map, anchors=anchors)
+        top = block(ws, top, label, rows, sr25, lists, ref_map=ref_map, anchors=anchors, quant_refs=quant_refs)
     ws.freeze_panes = "C14"
     st = wb.create_sheet("2. OPTIONAL highlighted stories", 1)
     stories_sheet(st, unit=code)
-    wb.move_sheet("Lists", offset=0)
+    order = ["1. Reporting template", "2. OPTIONAL highlighted stories", SR25_SHEET, "4. Quantitative data", "Lists"]
+    wb._sheets.sort(key=lambda w: order.index(w.title))
+    wb.active = 0
     safe = code.replace("&", "and")
     path = OUT / folder / f"{safe} - end-2026 sustainability reporting request.xlsx"
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -496,7 +502,8 @@ def master(qual, quan, fac_rows, central_sections, sr25_all):
         ("Reporting approach", "Transition year: cover all of CY2026, distinguishing former Sustainability Plan 2030 activity from foundations and early actions after the Sustainability 2030 launch (~20 Oct 2026). Databook is the authoritative quantitative source. Target status (Met/Partially met/Not met) retained for now for internal management reporting – rating framework under review."),
         ("Key dates (TBC)", f"Requests issued: Nov–Dec 2026 | Highlighted stories due: {STORIES_DUE} | Reporting template due: {DUE_DATE} | Support meetings: January 2027 | Sustainability Reporting Review Group: ~15 Feb 2027 | VCAG: 16 Feb & ~2 Mar 2027"),
         ("Tabs", "1. Requirements matrix – every S2030 qualitative indicator, owner and request\n"
-                 "2. Quant – Databook mapping – quantitative indicators to confirm with the Databook/central data owners\n"
+                 "2. Quant coverage – every quantitative indicator checked against the Databook draft, owner and action\n"
+                 "2b. Databook register – every Databook data point with columns to confirm definition, source, owner\n"
                  "3. Stakeholder map & RASCI – SR25 → SR26 unit mapping and who is asked for what\n"
                  "4. Request tracker – sent/chased/received/confirmed status and response rate\n"
                  "Faculties / CI&S / CFOG / ESG / CIOG / MRE / L&R – consolidated responses (copy in from returned request workbooks; same layout)\n"
@@ -525,47 +532,31 @@ def master(qual, quan, fac_rows, central_sections, sr25_all):
     title(ws, "End-2026 target status assessment and reporting", "1. Requirements matrix (qualitative)")
     cols = ["Ref", "Domain", "Priority area", "Target", "Indicator", "Reporting requirement (S2030 Qual sheet)",
             "Key stakeholders (S2030 sheet)", "SR26 request issued to", "Specific projects we are aware of (area & person)",
-            "Internal vs External", "Flag for continuous improvement", "Notes", "Related SR25 ref", "Channel", "Owner confirmed?"]
+            "Internal vs External", "Flag for continuous improvement", "Notes", "Related SR25 ref", "Channel",
+            "Quantitative component", "Owner confirmed?"]
     hdr_row(ws, 5, cols)
+    qcomp = {c["ref"]: c for c in COVERAGE}
     for k, r in enumerate(qual):
         rr = 6 + k
         to = [u[0] for u in CENTRAL for s in u[3] if s[1](r)]
         if "Faculties" in r["stake"]:
             to = ["Faculties (pilot)"] + to
-        channel = "Tailored request" if to else ("Databook / central data owner" if "Quantitative" in r["notes"] or not r["stake"] else "TBC")
+        channel = "Tailored request" if to else "TBC"
+        qc = qcomp.get(r["ref"])
+        qtxt = f"Yes – {qc['indb']}; see 2. Quant coverage" if qc else ""
         vals = [r["ref"], r["domain"], r["pa"], r["target"], r["indicator"], r["request"], r["stake"],
                 ", ".join(dict.fromkeys(to)) or "TBC – no owner identified", r["projects"], r["intext"], r["ci"], r["notes"],
-                SR25_MAP.get(r["row"], ""), channel, ""]
+                SR25_MAP.get(r["row"], ""), channel, qtxt, ""]
         for i, v in enumerate(vals):
             body(ws.cell(rr, 2 + i, v), REFF if i == 0 else None, bold=i == 0)
         ws.row_dimensions[rr].height = 90
     ws.auto_filter.ref = f"B5:{get_column_letter(1 + len(cols))}{5 + len(qual)}"
     ws.freeze_panes = "D6"
-    widths(ws, dict(zip("BCDEFGHIJKLMNOP", [9, 16, 18, 40, 40, 50, 18, 22, 40, 11, 12, 30, 10, 18, 12])))
+    widths(ws, dict(zip("BCDEFGHIJKLMNOPQ", [9, 16, 18, 40, 40, 50, 18, 22, 40, 11, 12, 30, 10, 18, 24, 12])))
 
-    # 2. Quant
-    ws = wb.create_sheet("2. Quant – Databook mapping")
-    title(ws, "End-2026 target status assessment and reporting", "2. Quantitative indicators – Databook mapping")
-    ws["B3"] = ("Databook is the authoritative quantitative source – confirm coverage first and only request data separately where an indicator is not covered. "
-                "Per the SR26 approach: map Sep–Oct; confirm provisional data in January; finalise by February.")
-    ws["B3"].font = Font(name="Aptos", italic=True)
-    cols = ["Ref", "Priority area", "Indicator", "Quant? (Y/M)", "Suggested metric", "Key person to follow up", "Internal vs External",
-            "Analysis notes", "Covered by Databook?", "Definition", "Reporting boundary", "Period", "Source system", "End-2026 figure",
-            "Quality note / limitations", "Data owner", "Owner confirmed?", "Confirmation date"]
-    hdr_row(ws, 5, cols)
-    for k, q in enumerate(quan):
-        rr = 6 + k
-        vals = [q["ref"], q["pa"], q["indicator"], q["flag"], q["metric"], q["person"], q["intext"], q["notes"]] + [""] * 10
-        for i, v in enumerate(vals):
-            body(ws.cell(rr, 2 + i, v), REFF if i == 0 else (GOLD if 8 <= i else None), bold=i == 0)
-            if i >= 8:
-                ws.cell(rr, 2 + i).fill = PatternFill("solid", fgColor="FFF2CC")
-        ws.row_dimensions[rr].height = 75
-    last = 5 + len(quan)
-    lists_tmp = {"yn": "=Lists!$E$2:$E$4"}
-    dv_list(ws, lists_tmp["yn"], f"J6:J{last}"); dv_list(ws, lists_tmp["yn"], f"R6:R{last}")
-    ws.freeze_panes = "E6"
-    widths(ws, dict(zip("BCDEFGHIJKLMNOPQRS", [9, 18, 40, 9, 40, 18, 11, 36, 12, 24, 18, 12, 18, 14, 26, 18, 12, 14])))
+    # 2. Quant coverage + 2b. Databook register
+    quant.coverage_tab(wb, COVERAGE)
+    quant.register_tab(wb, DATABOOK)
 
     # 3. Stakeholder map & RASCI
     ws = wb.create_sheet("3. Stakeholder map & RASCI")
@@ -701,7 +692,7 @@ def master(qual, quan, fac_rows, central_sections, sr25_all):
         ("Chancellery units had SR25 requests but no SR26 qualitative indicator names them – confirm if requests are needed.", "Stakeholder map", "TBC", "Decide", "Open"),
         ("Legal & Risk asked for climate resilience maturity CL3(a), following SR25 (8a(i)/(ii): University Risk 16 Climate Change; flood emergency response plans). CL3(a) is also with CI&S (Gerard) – agree who leads.", "CL3(a); L&R; CI&S", "Stefanus", "Confirm with Gerard", "Open"),
         ("TR2(b) 'Documented progress of strategic initiatives, incl. Impact Accelerators' reuses the TR2(d) case-study wording and has no stakeholder in the Qual sheet – left as-is.", "TR2(b)", "TBC", "Review wording/owner", "Open"),
-        ("Several rows in the Qual sheet are quantitative (GHG inventory, intensity, waste, procurement spend %, AUM %, biodiversity metrics) and have no stakeholder – routed to the Databook mapping tab, not requested from units.", "CL1(a)-(b); CL2(b); NB1(a); CE1-2; RP2; RI1(a)", "TBC", "Confirm Databook coverage", "Open"),
+        ("Quantitative-only rows (no stakeholder in the Qual sheet) removed from the requirements matrix and moved to '2. Quant coverage'; Databook gaps requested in Tab 4 of the owning central unit's request.", "TR2(b); CL1(a)-(b); CL2(b); NB1(a); CE1-2; RP2; RI1(a)", "Stefanus", "Confirm owners and Databook coverage with Chris", "Open"),
         ("Target status rating (Met/Partially met/Not met) retained pending revamp of the traffic-light framework.", "All", "Director, Sustainability", "Update templates once agreed", "Open"),
         ("Due dates are placeholders based on the SR26 approach timeline (stories early Dec; requests due January).", "All", "TBC", "Confirm dates", "Open"),
         ("20 indicators are requested from each faculty (SR25 sent 10). Monitor burden in pilot.", "Faculties", "TBC", "Review after pilot", "Open"),
@@ -957,6 +948,9 @@ def main():
     qual = read_qual()
     by_row = {r["row"]: r for r in qual}
     quan = read_quan(by_row)
+    global DATABOOK, COVERAGE
+    DATABOOK = quant.read_databook(qual)
+    COVERAGE = quant.coverage(qual, quan, DATABOOK)
     sr25 = read_sr25_faculty()
     fac_rows = [r for r in qual if "Faculties" in r["stake"]]
     central_sections = {code: [(label, [r for r in qual if m(r)]) for label, m in secs] for code, _, _, secs in CENTRAL}
@@ -971,7 +965,9 @@ def main():
         print(" ", request_workbook(code, name, secs, prev_lookup(s25) if s25 else None, ref_map=CENTRAL_SR25_MAP[code],
                                     sr25_sections=s25, qual_by_row=by_row, folder="central_unit_requests"),
               [len(r) for _, r in secs], sum(len(x[1]) for x in s25), "SR25 rows")
-    print(" ", master(qual, quan, fac_rows, central_sections, sr25))
+    purged = quant.quant_only_rows(qual)
+    print("  quant-only rows removed from requirements matrix:", [r["ref"] for r in qual if r["row"] in purged])
+    print(" ", master([r for r in qual if r["row"] not in purged], quan, fac_rows, central_sections, sr25))
 
 
 if __name__ == "__main__":
