@@ -26,12 +26,13 @@ SRC = ROOT / "source"
 OUT = ROOT / "output"
 
 # ---------------------------------------------------------------- settings
-VERSION = "v0.4"  # bump on every revision; appears in file names and Read me
+VERSION = "v0.5"  # bump on every revision; appears in file names and Read me
 VERSION_HISTORY = [
     ("v0.1", "First draft: requirements matrix, pilot faculty and central-unit requests, tracker, evidence register."),
     ("v0.2", "SR25-style faculty wording and 'How SST will use'; scoring/T1/T2 formulas; Legal & Risk; project tabs; linked SR25 responses tab."),
     ("v0.3", "Quantitative indicators separated: removed from requirements matrix; '2. Quant coverage' and '2b. Databook register' against the Databook draft; '4. Quantitative data' tab in central-unit requests."),
     ("v0.4", "RASCI rebuilt to the SR25 standard ('3b. RASCI matrix'): indicator hierarchy, consolidated portfolios, SST contacts, A/R/S/C/I codes, summary counts."),
+    ("v0.5", "'3c. RASCI triangulation': each SR26 indicator compared with the SR25 RASCI (equivalent targets, translated areas), gaps and suggested actions."),
 ]
 DUE_DATE = "Friday 15 January 2027 (TBC)"
 STORIES_DUE = "Friday 4 December 2026 (TBC)"
@@ -514,6 +515,7 @@ def master(qual, quan, fac_rows, central_sections, sr25_all):
                  "2b. Databook register – every Databook data point with columns to confirm definition, source, owner\n"
                  "3. Stakeholder map – SR25 → SR26 unit mapping\n"
                  "3b. RASCI matrix – A/R/S/C/I roles per indicator and area (SR25 RASCI format), with counts\n"
+                 "3c. RASCI triangulation – SR26 roles cross-checked against the SR25 RASCI, gaps flagged\n"
                  "4. Request tracker – sent/chased/received/confirmed status and response rate\n"
                  "Faculties / CI&S / CFOG / ESG / CIOG / MRE / L&R – consolidated responses (copy in from returned request workbooks; same layout)\n"
                  "Highlighted stories – consolidated optional stories and case-study shortlist\n"
@@ -587,6 +589,7 @@ def master(qual, quan, fac_rows, central_sections, sr25_all):
     widths(ws, {"A": 4, "B": 14, "C": 40, "D": 44, "E": 40, "F": 18, "G": 50})
     ws.cell(7 + len(units), 2, "Who is responsible for each indicator: see '3b. RASCI matrix'.").font = Font(name="Aptos", italic=True)
     rasci.rasci_tab(wb, QUAL_ALL, COVERAGE, PILOT_FACULTIES, CENTRAL)
+    print("  SR25-only gaps by area:", rasci.triangulation_tab(wb, QUAL_ALL))
 
     # 4. Request tracker
     ws = wb.create_sheet("4. Request tracker")

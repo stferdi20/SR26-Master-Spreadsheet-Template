@@ -17,6 +17,9 @@ FILL = {"A and R": "00B050", "A": "92D050", "R": "C6EFCE", "R (quant)": "BDD7EE"
         "S": "FFEB9C", "C": "F8CBAD", "I": "EDEDED"}
 
 
+SR26_CODES = {}  # ref -> {SR26 area label: code}, filled by rasci_tab for the triangulation tab
+
+
 def rasci_tab(wb, qual, coverage, faculties, central):
     import build as B
     import quant
@@ -86,6 +89,8 @@ def rasci_tab(wb, qual, coverage, faculties, central):
             if own == "SST":
                 d.setdefault("SST", "R (compile)")
             else:
+                if own == "CFOG":  # two CFOG sections: investments vs procurement
+                    own = "CFOG – Treasury & Investments" if q["ref"].startswith("RI") else "CFOG – Procurement"
                 key = own if own in col_of else next((k for k in col_of if k.startswith(own)), None)
                 if key and d.get(key) != "R" and c["npts"]:
                     d[key] = "R (quant)"
@@ -98,6 +103,7 @@ def rasci_tab(wb, qual, coverage, faculties, central):
             d["FAC*"] = "A and R"
         if any(cols[col_of[k] - first][0] == "COO portfolio" for k in d if k in col_of):
             d["COO*"] = "A and R"
+        SR26_CODES[q["ref"]] = {cols[col_of[k] - first][1]: v for k, v in d.items() if k in col_of and not k.endswith("*")}
         return d
 
     r, num = 7, {"dom": 0}
@@ -172,3 +178,131 @@ def rasci_tab(wb, qual, coverage, faculties, central):
     ws.freeze_panes = f"{get_column_letter(first)}7"
     ws.sheet_properties.outlinePr.summaryRight = False
     ws.auto_filter.ref = f"A6:{last_col}{bot}"
+
+
+# ---------------------------------------------------------------- SR25 -> SR26 triangulation
+# S2030 Qual row -> equivalent SR25 (SP2030) target(s) in the SR25 RASCI. Judgement-based; [] = new in Sustainability 2030.
+SR25_TARGETS = {8: ["4a"], 9: ["4b"], 10: ["3c"], 11: ["4b", "3e"], 12: ["5a", "2a"], 13: ["5a"], 14: ["5a"], 15: ["5a"],
+                16: ["5b"], 17: ["5b"], 18: ["5b"], 19: ["5b"], 20: ["5c"], 21: ["5c"], 22: ["5c", "3d"], 23: ["5c"],
+                24: ["1a"], 25: ["1a"], 26: ["1a", "1b"], 27: ["1b"], 28: ["1b"], 29: ["1b"], 30: ["8a"],
+                31: ["9a", "9b"], 32: ["9a"], 33: ["9b"], 34: ["9b"], 35: ["11c"], 36: ["11c"], 37: ["11c"], 38: [], 39: [],
+                40: ["7b", "8a"], 41: ["7b"], 42: ["7b"], 43: ["7b", "6a"], 44: ["11a"], 45: ["11a", "11b"], 46: ["11c"],
+                47: ["11d"], 48: ["11d"], 49: ["11c"], 50: ["12a"], 51: ["12b"], 52: ["6a"], 53: ["2a"], 54: ["7a", "7c", "3a"],
+                55: ["3a"]}
+# SR25 RASCI area -> SR26 area (None = consolidated column, skipped; 'Not in SR26: …' = area with no SR26 request)
+SR25_AREA = {
+    "Faculties (all)": None, "Office of the Provost (all)": None, "COO Portfolio (all)": None,
+    "Chancellery Global, Culture & Engagement (all)": None, "CD consolidated": None,
+    "Architecture, Building and Planning": "ABP – Architecture, Building and Planning", "Arts": "ARTS – Arts",
+    "Business and Economics / MBS": "FBE – Business and Economics", "Science": "SCI – Science",
+    "Education": "Non-pilot faculties", "Engineering and IT": "Non-pilot faculties", "Fine Arts and Music": "Non-pilot faculties",
+    "Law": "Non-pilot faculties", "MDHS": "Non-pilot faculties",
+    "Academic": "Not in SR26: Provost / Chancellery Education", "Indigenous": "Not in SR26: Chancellery Indigenous",
+    "People strategy?": "Not in SR26: People strategy", "Advancement, Communications & Marketing": "Not in SR26: Advancement (ACM)",
+    "Chancellery Research and Enterprise": "MRE – Melbourne Research and Enterprise",
+    "Chancellery Global": "Not in SR26: Chancellery Global, Culture & Engagement",
+    "Community and cultural partnerships": "Not in SR26: Chancellery Global, Culture & Engagement",
+    "CD Sustainability Strategy": "CI&S – Sustainability Strategy", "CD Treasury & Investments": "CFOG – Treasury & Investments",
+    "CD Estate (development,strategy,planning and perfomance)": "CI&S – Estate Planning & Development",
+    "CD EPMO and investment office": "Not in SR26: EPMO & investment office", "CFOG (Finance)": "Not in SR26: CFOG Finance",
+    "CFOG (Procurement)": "CFOG – Procurement", "Campus Management - Sustainability Delivery": "ESG – Campus Operations & Sustainability Delivery",
+    "Campus management - project delivery": "ESG – Campus Operations & Sustainability Delivery",
+    "Student and scholarly services": "Not in SR26: Student & Scholarly Services", "RIC": "Not in SR26: RIC",
+    "Legal and Risk": "Legal & Risk – Risk & resilience", "EPG": "Not in SR26: EPG",
+    "University governance": "Not in SR26: University governance", "Academic Board": "Not in SR26: Academic Board",
+}
+STRONG = ("A", "R")  # SR25 codes that count as a reporting responsibility (A, R, A and R, R (air travel)...)
+
+
+def read_sr25_rasci():
+    """{SR25 target: (text, {SR26 area: SR25 code})}"""
+    from openpyxl import load_workbook
+    import build as B
+    ws = load_workbook(B.SRC / "SR25_master.xlsx", data_only=True)["RASCI"]
+    areas = {c: " ".join(str(ws.cell(6, c).value).split()) for c in range(9, ws.max_column + 1) if ws.cell(6, c).value}
+    out = {}
+    for r in range(7, ws.max_row + 1):
+        if ws.cell(r, 2).value == "Target":
+            d = {}
+            for c, a in areas.items():
+                v = ws.cell(r, c).value
+                m = SR25_AREA.get(a)
+                if v not in (None, "") and m:
+                    v = str(v).strip()
+                    if m not in d or (v.startswith(STRONG) and not d[m].startswith(STRONG)):
+                        d[m] = v
+            out[str(ws.cell(r, 1).value)] = (str(ws.cell(r, 5).value), d)
+    return out
+
+
+def triangulation_tab(wb, qual):
+    import build as B
+    from openpyxl.styles import Alignment, Font, PatternFill
+    sr25 = read_sr25_rasci()
+    ws = wb.create_sheet("3c. RASCI triangulation")
+    B.title(ws, "End-2026 target status assessment and reporting", "3c. RASCI triangulation (SR25 → SR26)")
+    ws["B3"] = ("Cross-check of the SR26 RASCI (3b) against the SR25 RASCI. Each SR26 indicator is mapped to its equivalent SR25 target(s) "
+                "(judgement – see column D); SR25 areas are translated to the SR26 structure. 'SR25 only' flags an area that held a "
+                "responsibility in SR25 but has no SR26 role – check whether it should be asked, consulted or informed. "
+                "Non-pilot faculties are excluded from gaps (pilot only). SR26 codes are not changed by this tab.")
+    ws["B3"].alignment = B.WRAP; ws.merge_cells("B3:J3"); ws.row_dimensions[3].height = 60
+    cols = ["Ref", "Indicator", "Equivalent SR25 target(s)", "SR25 responsibilities (translated to SR26 areas)",
+            "SR26 responsibilities (3b)", "In both", "SR25 only – check", "New in SR26", "Suggested action", "Decision / notes"]
+    B.hdr_row(ws, 5, cols)
+    gap_count = {}
+    r = 6
+    for q in qual:
+        tg = SR25_TARGETS.get(q["row"], [])
+        s25 = {}
+        for t in tg:
+            for a, v in sr25.get(t, ("", {}))[1].items():
+                if a == "Non-pilot faculties":
+                    continue
+                if a not in s25 or (v.startswith(STRONG) and not s25[a].startswith(STRONG)):
+                    s25[a] = v
+        s26 = {a: v for a, v in SR26_CODES.get(q["ref"], {}).items() if not a.startswith("SST")}
+        r25 = {a for a, v in s25.items() if v.startswith(STRONG)}
+        both = sorted(r25 & set(s26))
+        only25 = sorted(r25 - set(s26))
+        new26 = sorted(set(s26) - set(s25))
+        for a in only25:
+            gap_count[a] = gap_count.get(a, 0) + 1
+        if not tg:
+            action = "New indicator – no SR25 equivalent; SR26 roles stand."
+        elif not only25:
+            action = "Consistent with SR25." + (" New areas added in SR26." if new26 else "")
+        else:
+            outside = [a for a in only25 if a.startswith("Not in SR26")]
+            inside = [a for a in only25 if not a.startswith("Not in SR26")]
+            parts = []
+            if inside:
+                parts.append("Check why " + ", ".join(x.split(" – ")[0] for x in inside) + " is not asked (was responsible in SR25)")
+            if outside:
+                parts.append("Consider request or 'C/I' for " + ", ".join(x.replace("Not in SR26: ", "") for x in outside))
+            action = "; ".join(parts) + "."
+        fmt = lambda d: "\n".join(f"{a.replace('Not in SR26: ', '⚠ ')}: {v}" for a, v in sorted(d.items()))
+        tg_txt = "\n".join(f"{t} – {sr25.get(t, ('?',))[0][:70]}" for t in tg) or "None (new in Sustainability 2030)"
+        vals = [q["ref"], q["indicator"], tg_txt, fmt(s25) or "–", fmt(s26) or "SST compiles", "\n".join(both),
+                "\n".join(only25), "\n".join(new26), action, ""]
+        for i, v in enumerate(vals):
+            B.body(ws.cell(r, 2 + i, v), B.REFF if i == 0 else None, bold=i == 0)
+        if only25:
+            ws.cell(r, 8).fill = PatternFill("solid", fgColor="F8CBAD")
+        if new26:
+            ws.cell(r, 9).fill = PatternFill("solid", fgColor="DDEBF7")
+        ws.row_dimensions[r].height = max(60, 14 * max(len(s25), len(s26), 1))
+        r += 1
+    last = r - 1
+    # summary by area
+    r += 2
+    ws.cell(r, 2, "SR25 areas with responsibilities but no SR26 role (number of indicators)").font = Font(name="Aptos", bold=True, size=14, color=B.NAVY)
+    r += 1
+    B.hdr_row(ws, r, ["Area", "Indicators", "In SR26 structure?"])
+    for a, n in sorted(gap_count.items(), key=lambda x: -x[1]):
+        r += 1
+        for i, v in enumerate([a.replace("Not in SR26: ", ""), n, "No – no SR26 request" if a.startswith("Not in SR26") else "Yes – check"]):
+            B.body(ws.cell(r, 2 + i, v))
+    B.widths(ws, dict(zip("BCDEFGHIJK", [9, 36, 30, 36, 30, 22, 26, 22, 38, 26])))
+    ws.freeze_panes = "D6"
+    ws.auto_filter.ref = f"B5:K{last}"
+    return gap_count
