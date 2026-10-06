@@ -65,7 +65,7 @@ def project_tabs(wb):
     # ---------------- P1 Project plan on a page
     kv_sheet("P1 Project plan", "P1. SR26 Project plan on a page", [
         ("Project plan on a page", [
-            ("Version control", "DRAFT v0.1 – based on SR26 approach (Sep 2026)"),
+            ("Version control", f"DRAFT {B.VERSION} – based on SR26 approach (Sep 2026)"),
             ("Context", "The annual Sustainability Report is the University's core public account of sustainability progress. SR26 is a transition report following the refreshed Sustainability 2030 launch (~20 Oct 2026)."),
             ("Objectives / principles", "Accurate and transparent (clear transition-year framing) • Fit-for-purpose (request only what is necessary, available and usable) • Evidence-led (each request linked to an indicator, report use and evidence) • Integrated (Databook is the primary quantitative source) • Reusable (templates and roles for 2027+) • Accessible (one web page per priority area: narrative + case studies) • Credible (independent review; traffic-light ratings deferred to 2027 reporting)"),
             ("Reporting model", "Webpages by priority area; transition-year framing; no published traffic lights (internal ratings only); Databook for quantitative data; targeted qualitative requests; early case-study pipeline; Sustainability Reporting Review Group."),
