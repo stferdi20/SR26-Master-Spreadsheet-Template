@@ -27,7 +27,7 @@ SRC = ROOT / "source"
 OUT = ROOT / "output"
 
 # ---------------------------------------------------------------- settings
-VERSION = "v0.11"  # bump on every revision; appears in file names and Read me
+VERSION = "v0.12"  # bump on every revision; appears in file names and Read me
 VERSION_HISTORY = [
     ("v0.1", "First draft: requirements matrix, pilot faculty and central-unit requests, tracker, evidence register."),
     ("v0.2", "SR25-style faculty wording and 'How SST will use'; scoring/T1/T2 formulas; Legal & Risk; project tabs; linked SR25 responses tab."),
@@ -40,6 +40,7 @@ VERSION_HISTORY = [
     ("v0.9", "Team timeline applied: early engagement w/c 26 Oct; requests W1 Nov; due 15 Dec 2026 (responses and stories); first review W3 Dec; follow-up W3–W4 Dec; consolidation W4 Dec; CDSS as contact; optional 1:1 meetings; tracker statuses and project timeline updated."),
     ("v0.10", "RASCI: the four pilot faculties merged into one 'Faculties' column (identical requests; SR25 contacts kept in the contact row)."),
     ("v0.11", "Removed '3c. RASCI triangulation' (agreed and applied) and '0.5 Target Check' (T2 now reads 'Requested?' from A1)."),
+    ("v0.12", "Teams linking (pilot: ABP): request files get stable names and protected layouts; master Faculties ABP rows and ABP story slots linked to the ABP file in the same folder; tracker counts answered and owner-confirmed rows automatically."),
 ]
 # Team timeline (Oct 2026): early engagement w/c 26 Oct; requests issued W1 Nov; 6-week collection to 15 Dec;
 # first review W3 Dec; targeted follow-up W3–W4 Dec; consolidated master W4 Dec.
@@ -110,6 +111,7 @@ STATUS_DEF = [
     ("Not yet started", "No action has been taken."),
 ]
 SCORES = [("Met or exceeded", 3), ("Partially met", 2), ("Not met", 1), ("Not yet started", 0)]  # as SR25 'Lists (Hide)'
+TRACK_ROWS = {}  # tracker key (faculty code / section label) -> tracker row
 TRACK_STATUS = ["Not sent", "Sent", "1:1 meeting", "Received", "First review", "Follow-up", "Complete", "Not required"]
 
 # ---------------------------------------------------------------- styles (SR25 look)
@@ -249,6 +251,16 @@ for _code, _name, _sr25, _secs in CENTRAL:
     _secs[:] = [(lab, _exclusive(m, _code, k == 0)) for k, (lab, m) in enumerate(_secs)]
 
 
+# Request workbooks linked into the master (same Teams folder; relative workbook links). Add codes as files are uploaded.
+LINKED_UNITS = ["ABP"]
+REQ_ROWS = {}  # code -> {"refs": {ref: row on tab 1}, "stories": [rows on tab 2]} – filled by request_workbook
+
+
+def request_name(code):
+    """Stable request file name (no version) so workbook links survive revisions."""
+    return f"{file_code(code)} - SR26 sustainability reporting request.xlsx"
+
+
 def file_code(code):
     """File-name-safe unit code."""
     return {"CI&S": "CIandS", "L&R": "LandR", "AC&M": "ACM"}.get(code, code)
@@ -382,7 +394,7 @@ def block(ws, top, unit_label, rows, sr25, lists, reg=None, key=None, ref_map=No
     h1 = top + 2
     for rng, text, fill, fnt in [
         ((3, 7), "Sustainability 2030 target and indicator", HDR, Font(name="Aptos Narrow", size=14, bold=True, color="FFFFFF")),
-        ((8, 11), "End-2025 reporting (click the ref to see your full SR25 response; [+] above expands a summary)", HDR, Font(name="Aptos Narrow", size=14, bold=True, color="FFFFFF")),
+        ((8, 11), "End-2025 reporting (click the ref to see your full SR25 response)", HDR, Font(name="Aptos Narrow", size=14, bold=True, color="FFFFFF")),
         ((12, 18), "End-2026 reporting (PLEASE COMPLETE THIS SECTION)", GOLD, Font(name="Aptos Narrow", size=14, bold=True, color=DARK))]:
         ws.merge_cells(start_row=h1, start_column=rng[0], end_row=h1, end_column=rng[1])
         cell = ws.cell(h1, rng[0], text); cell.fill, cell.font, cell.alignment = fill, fnt, CWRAP
@@ -432,10 +444,22 @@ def block(ws, top, unit_label, rows, sr25, lists, reg=None, key=None, ref_map=No
     return last + 3
 
 
-def setup_block_sheet(ws):
+def protect(ws, editable):
+    """Lock the layout (no inserting/deleting rows, which would break workbook links); only answer cells are editable."""
+    from openpyxl.styles import Protection
+    for r, c in editable:
+        ws.cell(r, c).protection = Protection(locked=False)
+    ws.protection.sheet = True
+    ws.protection.formatRows = False      # allow resizing rows
+    ws.protection.formatColumns = False   # allow resizing columns
+    ws.protection.formatCells = True
+
+
+def setup_block_sheet(ws, outline=True):
     widths(ws, WIDTHS)
     for col in "IJK":  # H (related SR25 ref + link) stays visible
-        ws.column_dimensions[col].outlineLevel = 1
+        if outline:  # grouping can't be toggled on a protected sheet, so request files just hide the summary
+            ws.column_dimensions[col].outlineLevel = 1
         ws.column_dimensions[col].hidden = True
     ws.sheet_properties.outlinePr.summaryRight = False
 
@@ -549,6 +573,70 @@ def stories_master(wb):
     ws.freeze_panes = "D6"
 
 
+def link_cells(wb, reg):
+    """Point the master's answer cells (and story slots) at each linked request workbook: [n] = n-th external link."""
+    tmpl, stor = "1. Reporting template", "2. OPTIONAL highlighted stories"
+    for n, code in enumerate(LINKED_UNITS, start=1):
+        rows = REQ_ROWS[code]
+        for key, sheet, r0, r1 in reg:
+            if key != code:
+                continue
+            ws = wb[sheet]
+            for r in range(r0, r1 + 1):
+                src = rows["refs"].get(ws.cell(r, 2).value)
+                if not src:
+                    continue
+                for c in range(12, 19):
+                    a = f"[{n}]'{tmpl}'!{get_column_letter(c)}{src}"
+                    ws.cell(r, c).value = f'=IF({a}="","",{a})'
+                    ws.cell(r, c).fill = PatternFill("solid", fgColor="E2EFDA")
+        st = wb["Highlighted stories"]
+        first = next(r for r in range(6, st.max_row + 1) if str(st.cell(r, 2).value or "").startswith(code + " "))
+        for k, src in enumerate(rows["stories"]):
+            for i in range(len(STORY_COLS)):
+                a = f"[{n}]'{stor}'!{get_column_letter(2 + i)}{src}"
+                st.cell(first + k, 4 + i).value = f'=IF({a}="","",{a})'
+                st.cell(first + k, 4 + i).fill = PatternFill("solid", fgColor="E2EFDA")
+
+
+def add_external_links(path, codes):
+    """Inject Excel external-link parts (relative to the master's folder) for each linked request workbook."""
+    import zipfile
+    from urllib.parse import quote
+    src = zipfile.ZipFile(path)
+    files = {n: src.read(n) for n in src.namelist()}
+    src.close()
+    sheets = ["1. Reporting template", "2. OPTIONAL highlighted stories", SR25_SHEET, "4. Quantitative data", "Lists"]
+    refs, rels, ctypes = [], [], []
+    for n, code in enumerate(codes, start=1):
+        names = "".join(f'<sheetName val="{s}"/>' for s in sheets)
+        data = "".join(f'<sheetData sheetId="{i}"/>' for i in range(len(sheets)))
+        files[f"xl/externalLinks/externalLink{n}.xml"] = (
+            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
+            '<externalLink xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+            '<externalBook xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" r:id="rId1">'
+            f'<sheetNames>{names}</sheetNames><sheetDataSet>{data}</sheetDataSet></externalBook></externalLink>').encode()
+        files[f"xl/externalLinks/_rels/externalLink{n}.xml.rels"] = (
+            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
+            '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+            '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/externalLinkPath" '
+            f'Target="{quote(request_name(code))}" TargetMode="External"/></Relationships>').encode()
+        refs.append(f'<externalReference r:id="rIdExt{n}"/>')
+        rels.append(f'<Relationship Id="rIdExt{n}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/externalLink" '
+                    f'Target="externalLinks/externalLink{n}.xml"/>')
+        ctypes.append(f'<Override PartName="/xl/externalLinks/externalLink{n}.xml" '
+                      'ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.externalLink+xml"/>')
+    wbx = files["xl/workbook.xml"].decode()
+    if 'xmlns:r=' not in wbx.split(">", 2)[1]:
+        wbx = wbx.replace("<workbook ", '<workbook xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" ', 1)
+    files["xl/workbook.xml"] = wbx.replace("</sheets>", "</sheets><externalReferences>" + "".join(refs) + "</externalReferences>", 1).encode()
+    files["xl/_rels/workbook.xml.rels"] = files["xl/_rels/workbook.xml.rels"].decode().replace("</Relationships>", "".join(rels) + "</Relationships>").encode()
+    files["[Content_Types].xml"] = files["[Content_Types].xml"].decode().replace("</Types>", "".join(ctypes) + "</Types>").encode()
+    with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as z:
+        for n in ["[Content_Types].xml"] + [k for k in files if k != "[Content_Types].xml"]:
+            z.writestr(n, files[n])
+
+
 # ---------------------------------------------------------------- per-unit request workbook
 SR25_SHEET = "3. SR25 responses"
 
@@ -596,19 +684,31 @@ def request_workbook(code, name, sections, sr25, ref_map=None, sr25_sections=Non
     lists = lists_sheet(wb)
     quant_refs = quant.unit_quant_tab(wb, code, name, quant.owned_points(DATABOOK, code), DUE_DATE) if folder != "faculty_requests" else set()
     anchors = sr25_sheet(wb, name, sr25_sections or [], ref_map if ref_map is not None else SR25_MAP, qual_by_row or {})
-    title(ws, "End-2026 target status assessment and reporting", "End-2026 target status confirmation and reporting")
-    setup_block_sheet(ws); instructions(ws, name)
-    top = 11
+    title(ws, f"End-2026 target status assessment and reporting ({VERSION})", "End-2026 target status confirmation and reporting")
+    setup_block_sheet(ws, outline=False); instructions(ws, name)
+    top, rreg = 11, []
     for label, rows in sections:
-        top = block(ws, top, label, rows, sr25, lists, ref_map=ref_map, anchors=anchors, quant_refs=quant_refs)
+        top = block(ws, top, label, rows, sr25, lists, ref_map=ref_map, anchors=anchors, quant_refs=quant_refs, reg=rreg, key=label)
+    refs = {}
+    for _, _, r0, r1 in rreg:
+        for r in range(r0, r1 + 1):
+            if ws.cell(r, 2).value:
+                refs[ws.cell(r, 2).value] = r
+    REQ_ROWS[code] = {"refs": refs, "stories": [10, 11, 12]}
+    protect(ws, [(r, c) for r in refs.values() for c in range(12, 19)])
     ws.freeze_panes = "C14"
     st = wb.create_sheet("2. OPTIONAL highlighted stories", 1)
     stories_sheet(st, unit=code)
+    protect(st, [(r, c) for r in (10, 11, 12) for c in range(2, 2 + len(STORY_COLS))])
+    if "4. Quantitative data" in wb.sheetnames:
+        q4 = wb["4. Quantitative data"]
+        protect(q4, [(r, c) for r in range(8, q4.max_row + 1) for c in range(11, 16) if q4.cell(r, 3).value
+                     and q4.cell(r, 2).fill.fgColor.rgb not in ("00F2F2F2", "FFF2F2F2")])
     order = ["1. Reporting template", "2. OPTIONAL highlighted stories", SR25_SHEET, "4. Quantitative data", "Lists"]
     wb._sheets.sort(key=lambda w: order.index(w.title))
     wb.active = 0
     safe = file_code(code)
-    path = OUT / folder / f"{safe} - end-2026 sustainability reporting request - {VERSION}.xlsx"
+    path = OUT / folder / request_name(code)
     path.parent.mkdir(parents=True, exist_ok=True)
     wb.save(path)
     return path.name
@@ -707,38 +807,40 @@ def master(qual, quan, fac_rows, central_sections, sr25_all):
     ws = wb.create_sheet("4. Request tracker")
     title(ws, "End-2026 target status assessment and reporting", "4. Request tracker")
     cols = ["#", "Group", "Unit / section", "Key contact", "No. of indicators requested", "Request workbook", "Date sent",
-            "Due date", "Reminder date", "Optional 1:1 meeting (date)", "Response received", "Owner confirmed",
+            "Due date", "Reminder date", "Optional 1:1 meeting (date)", "Rows answered (auto)", "Owner confirmed rows (auto)",
             "Status", "Days overdue", "Notes / follow-up"]
     hdr_row(ws, 9, cols)
-    track = [(f"F{i+1}", "Faculty", f"{code} – {name}", len(fac_rows), f"{code} - end-2026 sustainability reporting request - {VERSION}.xlsx")
+    track = [(f"F{i+1}", "Faculty", f"{code} – {name}", len(fac_rows), request_name(code), code)
              for i, (code, name) in enumerate(PILOT_FACULTIES.items())]
     n = 0
     for code, name, _, secs in CENTRAL:
         for label, rows in central_sections[code]:
             n += 1
-            track.append((f"C{n}", "Central", label, len(rows), f"{file_code(code)} - end-2026 sustainability reporting request - {VERSION}.xlsx"))
+            track.append((f"C{n}", "Central", label, len(rows), request_name(code), label.split(" (")[0]))
     for k, t in enumerate(track):
         rr = 10 + k
         vals = [t[0], t[1], t[2], "TBC", t[3], t[4], None, DUE_DT, f"=IF(I{rr}=\"\",\"\",I{rr}-7)", "", None, "", "Not sent",
-                f"=IF(OR(I{rr}=\"\",L{rr}<>\"\"),\"\",MAX(0,TODAY()-I{rr}))", ""]
+                f"=IF(OR(I{rr}=\"\",L{rr}>=F{rr}),\"\",MAX(0,TODAY()-I{rr}))", ""]
         for i, v in enumerate(vals):
             body(ws.cell(rr, 2 + i, v))
         from datetime import date
-        for col in (8, 9, 10, 12):
+        for col in (8, 9, 10, 11):
             ws.cell(rr, col).number_format = "dd/mm/yyyy"
     last = 9 + len(track)
     dv_list(ws, f"=Lists!$D$2:$D${1 + len(TRACK_STATUS)}", f"N10:N{last}")
-    dv_list(ws, "=Lists!$E$2:$E$4", f"M10:M{last}")
+    TRACK_ROWS.update({t[5]: 10 + k for k, t in enumerate(track)})
+    tracker_ws = ws
     # summary
     ws["B4"] = "Summary"; ws["B4"].font = Font(name="Aptos", bold=True, size=14, color=NAVY)
     for i, s in enumerate(TRACK_STATUS):
         ws.cell(5 + i // 4 * 2, 3 + (i % 4) * 2, s).font = Font(name="Aptos", bold=True)
         ws.cell(6 + i // 4 * 2, 3 + (i % 4) * 2, f'=COUNTIF($N$10:$N${last},"{s}")')
     ws["L5"] = "Response rate"; ws["L5"].font = Font(name="Aptos", bold=True)
-    ws["L6"] = f'=IFERROR((COUNTIF($N$10:$N${last},"Received")+COUNTIF($N$10:$N${last},"Under review")+COUNTIF($N$10:$N${last},"Complete"))/(COUNTA($N$10:$N${last})-COUNTIF($N$10:$N${last},"Not required")),0)'
+    ws["L6"] = f'=IFERROR((COUNTIF($N$10:$N${last},"Received")+COUNTIF($N$10:$N${last},"First review")+COUNTIF($N$10:$N${last},"Follow-up")+COUNTIF($N$10:$N${last},"Complete"))/(COUNTA($N$10:$N${last})-COUNTIF($N$10:$N${last},"Not required")),0)'
     ws["L6"].number_format = "0%"
     ws["N5"] = "Owner confirmed"; ws["N5"].font = Font(name="Aptos", bold=True)
-    ws["N6"] = f'=COUNTIF($M$10:$M${last},"Yes")&" / "&COUNTA($C$10:$C${last})'
+    ws["N5"].value = "Rows owner-confirmed"
+    ws["N6"] = f'=SUM($M$10:$M${last})&" / "&SUM($F$10:$F${last})'
     widths(ws, dict(zip("ABCDEFGHIJKLMNOP", [4, 6, 10, 46, 16, 12, 44, 12, 12, 12, 16, 14, 12, 16, 10, 40])))
     ws.freeze_panes = "E10"
 
@@ -764,10 +866,17 @@ def master(qual, quan, fac_rows, central_sections, sr25_all):
         unit_tab(code, name, [(label.split(" (")[0], label, rows, prev, CENTRAL_SR25_MAP[code]) for label, rows in central_sections[code] if rows], False)
 
     scoring_tabs(wb, qual, reg)
+    for key, sheet, r0, r1 in reg:  # tracker progress, read from the unit tabs (which are linked to the request files)
+        tr = TRACK_ROWS.get(key)
+        if tr:
+            q = f"'{sheet}'!"
+            tracker_ws.cell(tr, 12, f'=COUNTIF({q}$L${r0}:$L${r1},"?*")')
+            tracker_ws.cell(tr, 13, f'=COUNTIF({q}$Q${r0}:$Q${r1},"Yes")')
     wording_log(wb, fac_rows)
 
     # Highlighted stories – compiled from every request's Tab 2, with SST assessment columns
     stories_master(wb)
+    link_cells(wb, reg)  # after the stories tab exists
 
     # Evidence register – kept simple: one line per material claim or figure used in the report
     ws = wb.create_sheet("Evidence register")
@@ -819,6 +928,8 @@ def master(qual, quan, fac_rows, central_sections, sr25_all):
     OUT.mkdir(exist_ok=True)
     p = OUT / f"SR26 end-year reporting master spreadsheet - {VERSION}.xlsx"
     wb.save(p)
+    if LINKED_UNITS:
+        add_external_links(p, LINKED_UNITS)
     return p.name
 
 

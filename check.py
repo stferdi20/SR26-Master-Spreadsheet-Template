@@ -25,11 +25,14 @@ def check(cond, msg):
 V = B.VERSION
 master_path = f"output/SR26 end-year reporting master spreadsheet - {V}.xlsx"
 M = load_workbook(master_path)
-req_files = sorted(glob.glob(f"output/*_requests/* - {V}.xlsx"))
-stale = [f for f in glob.glob("output/**/*.xlsx", recursive=True) if not f.endswith(f"{V}.xlsx")]
+req_files = sorted(glob.glob("output/*_requests/* - SR26 sustainability reporting request.xlsx"))
+stale = [f for f in glob.glob("output/*.xlsx") if not f.endswith(f"{V}.xlsx")]
+stale += [f for f in glob.glob("output/*_requests/*.xlsx") if f not in req_files]
+for f in req_files:  # request files keep a stable name; the version is shown inside
+    check(V in str(load_workbook(f)["1. Reporting template"]["B1"].value), f"{f.split('/')[-1][:12]}: version {V} shown in file")
 check(bool(glob.glob(f"output/SR26 project management - {V}.xlsx")), "separate project management workbook exists")
 check(not any(n.startswith("P") and n[1].isdigit() for n in M.sheetnames), "no project (P0–P5) tabs left in the master")
-check(not stale, f"all output files carry the current version {V} ({len(req_files) + 1} files)")
+check(not stale, f"master/project files carry {V}; request files use stable names ({len(req_files)} requests)")
 
 qual = B.read_qual()
 B.DATABOOK = quant.read_databook(qual)
@@ -69,7 +72,7 @@ for r in range(10, tr.max_row + 1):
     if f:
         code = UNCODE.get(f.split(" - ")[0], f.split(" - ")[0])
         trk[code] = trk.get(code, 0) + (tr.cell(r, 6).value or 0)
-        check(f.endswith(f"{V}.xlsx"), f"tracker file name for {code} is current version")
+        check(f == B.request_name(code), f"tracker file name for {code} matches the request file")
 for code, rows in req_rows.items():
     check(trk.get(code) == len(rows), f"tracker indicator count for {code} = {trk.get(code)} vs request rows {len(rows)}")
 
@@ -127,6 +130,28 @@ for r in range(6, qc.max_row + 1):
     own, n, where = qc.cell(r, 10).value, qc.cell(r, 9).value, qc.cell(r, 12).value
     if own and own != "SST" and n:
         check(own in req_rows and where, f"quant coverage {qc.cell(r, 2).value}: owner {own} has a request with Tab 4")
+
+# ---- workbook links: master points at the linked request files with the right rows
+import zipfile
+z = zipfile.ZipFile(master_path)
+for n, code in enumerate(B.LINKED_UNITS, start=1):
+    rel = z.read(f"xl/externalLinks/_rels/externalLink{n}.xml.rels").decode()
+    from urllib.parse import quote
+    check(quote(B.request_name(code)) in rel, f"external link {n} targets {B.request_name(code)} (relative, same folder)")
+    rq = load_workbook(next(f for f in req_files if f.endswith(B.request_name(code))))["1. Reporting template"]
+    ws = M["Faculties"] if code in B.PILOT_FACULTIES else M[code]
+    bad = 0; n_links = 0
+    for r in range(1, ws.max_row + 1):
+        v = ws.cell(r, 12).value
+        if isinstance(v, str) and v.startswith(f"=IF([{n}]"):
+            n_links += 1
+            src = int(re.search(r"!L(\d+)", v).group(1))
+            bad += rq.cell(src, 2).value != ws.cell(r, 2).value
+    check(n_links == len(req_rows[code]) and bad == 0, f"{code}: {n_links} linked rows, all pointing at the same ref in the request file")
+    tmpl = load_workbook(next(f for f in req_files if f.endswith(B.request_name(code))))
+    check(tmpl["1. Reporting template"].protection.sheet and tmpl["2. OPTIONAL highlighted stories"].protection.sheet,
+          f"{code}: request layout protected")
+check(z.read("xl/workbook.xml").decode().count("<externalReference ") == len(B.LINKED_UNITS), "workbook declares each external link once")
 
 # ---- no stale hard-coded text
 alltext = " ".join(str(c.value) for ws in M for row in ws.iter_rows() for c in row if isinstance(c.value, str))
