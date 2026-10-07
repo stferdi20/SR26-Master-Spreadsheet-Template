@@ -143,7 +143,7 @@ for n, code in enumerate(B.LINKED_UNITS, start=1):
     bad = 0; n_links = 0
     for r in range(1, ws.max_row + 1):
         v = ws.cell(r, 12).value
-        if isinstance(v, str) and v.startswith(f"=IF([{n}]"):
+        if isinstance(v, str) and v.startswith(f"=IF('[{n}]"):
             n_links += 1
             src = int(re.search(r"!L(\d+)", v).group(1))
             bad += rq.cell(src, 2).value != ws.cell(r, 2).value
@@ -152,6 +152,13 @@ for n, code in enumerate(B.LINKED_UNITS, start=1):
     check(tmpl["1. Reporting template"].protection.sheet and tmpl["2. OPTIONAL highlighted stories"].protection.sheet,
           f"{code}: request layout protected")
 check(z.read("xl/workbook.xml").decode().count("<externalReference ") == len(B.LINKED_UNITS), "workbook declares each external link once")
+allf = " ".join(f for n in z.namelist() if n.startswith("xl/worksheets/") for f in re.findall(r"<f>([^<]*)</f>", z.read(n).decode()))
+check(not re.search(r"\[\d+\]'", allf), "external references use Excel syntax '[n]Sheet'!A1 (bracket inside the quotes)")
+for n, code in enumerate(B.LINKED_UNITS, start=1):
+    ext = z.read(f"xl/externalLinks/externalLink{n}.xml").decode()
+    names = re.findall(r'sheetName val="([^"]+)"', ext)
+    real = load_workbook(next(f for f in req_files if f.endswith(B.request_name(code)))).sheetnames
+    check(names == real, f"external link {n} lists {code}'s real sheet names {real}")
 
 # ---- no stale hard-coded text
 alltext = " ".join(str(c.value) for ws in M for row in ws.iter_rows() for c in row if isinstance(c.value, str))

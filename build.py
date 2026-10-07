@@ -27,7 +27,7 @@ SRC = ROOT / "source"
 OUT = ROOT / "output"
 
 # ---------------------------------------------------------------- settings
-VERSION = "v0.14"  # bump on every revision; appears in file names and Read me
+VERSION = "v0.15"  # bump on every revision; appears in file names and Read me
 VERSION_HISTORY = [
     ("v0.1", "First draft: requirements matrix, pilot faculty and central-unit requests, tracker, evidence register."),
     ("v0.2", "SR25-style faculty wording and 'How SST will use'; scoring/T1/T2 formulas; Legal & Risk; project tabs; linked SR25 responses tab."),
@@ -43,6 +43,7 @@ VERSION_HISTORY = [
     ("v0.12", "Teams linking (pilot: ABP): request files get stable names and protected layouts; master Faculties ABP rows and ABP story slots linked to the ABP file in the same folder; tracker counts answered and owner-confirmed rows automatically."),
     ("v0.13", "Formatting fixes in request files: no frozen panes (titles were clipped), 'SR25 response' header no longer merged across hidden columns, wider column H."),
     ("v0.14", "No target status rating in 2026 (Rose): rating column and definitions removed from all requests; A1 renamed 'A1. Response summary' (units asked, responses received, awaiting, owner confirmed); T1/T2 and tracker updated; columns shift left by one."),
+    ("v0.15", "Fix workbook links: external reference written in Excel's syntax ('[1]Sheet'!A1, not [1]'Sheet'!A1); link lists the request file's actual sheet names."),
 ]
 # Team timeline (Oct 2026): early engagement w/c 26 Oct; requests issued W1 Nov; 6-week collection to 15 Dec;
 # first review W3 Dec; targeted follow-up W3–W4 Dec; consolidated master W4 Dec.
@@ -244,6 +245,7 @@ for _code, _name, _sr25, _secs in CENTRAL:
 
 # Request workbooks linked into the master (same Teams folder; relative workbook links). Add codes as files are uploaded.
 LINKED_UNITS = ["ABP"]
+REQ_SHEETS = {}  # code -> sheet names of the request workbook (for the external link part)
 REQ_ROWS = {}  # code -> {"refs": {ref: row on tab 1}, "stories": [rows on tab 2]} – filled by request_workbook
 
 
@@ -567,14 +569,14 @@ def link_cells(wb, reg):
                 if not src:
                     continue
                 for c in range(12, 18):
-                    a = f"[{n}]'{tmpl}'!{get_column_letter(c)}{src}"
+                    a = f"'[{n}]{tmpl}'!{get_column_letter(c)}{src}"  # Excel syntax: '[n]Sheet name'!A1
                     ws.cell(r, c).value = f'=IF({a}="","",{a})'
                     ws.cell(r, c).fill = PatternFill("solid", fgColor="E2EFDA")
         st = wb["Highlighted stories"]
         first = next(r for r in range(6, st.max_row + 1) if str(st.cell(r, 2).value or "").startswith(code + " "))
         for k, src in enumerate(rows["stories"]):
             for i in range(len(STORY_COLS)):
-                a = f"[{n}]'{stor}'!{get_column_letter(2 + i)}{src}"
+                a = f"'[{n}]{stor}'!{get_column_letter(2 + i)}{src}"
                 st.cell(first + k, 4 + i).value = f'=IF({a}="","",{a})'
                 st.cell(first + k, 4 + i).fill = PatternFill("solid", fgColor="E2EFDA")
 
@@ -586,9 +588,9 @@ def add_external_links(path, codes):
     src = zipfile.ZipFile(path)
     files = {n: src.read(n) for n in src.namelist()}
     src.close()
-    sheets = ["1. Reporting template", "2. OPTIONAL highlighted stories", SR25_SHEET, "4. Quantitative data", "Lists"]
     refs, rels, ctypes = [], [], []
     for n, code in enumerate(codes, start=1):
+        sheets = REQ_SHEETS[code]  # the linked file's actual sheet names, in order
         names = "".join(f'<sheetName val="{s}"/>' for s in sheets)
         data = "".join(f'<sheetData sheetId="{i}"/>' for i in range(len(sheets)))
         files[f"xl/externalLinks/externalLink{n}.xml"] = (
@@ -675,6 +677,7 @@ def request_workbook(code, name, sections, sr25, ref_map=None, sr25_sections=Non
             if ws.cell(r, 2).value:
                 refs[ws.cell(r, 2).value] = r
     REQ_ROWS[code] = {"refs": refs, "stories": [10, 11, 12]}
+    REQ_SHEETS[code] = None  # set after tab order is final
     protect(ws, [(r, c) for r in refs.values() for c in range(12, 18)])
     # no frozen panes: a frozen column clips the title and section names in column B
     st = wb.create_sheet("2. OPTIONAL highlighted stories", 1)
@@ -686,6 +689,7 @@ def request_workbook(code, name, sections, sr25, ref_map=None, sr25_sections=Non
                      and q4.cell(r, 2).fill.fgColor.rgb not in ("00F2F2F2", "FFF2F2F2")])
     order = ["1. Reporting template", "2. OPTIONAL highlighted stories", SR25_SHEET, "4. Quantitative data", "Lists"]
     wb._sheets.sort(key=lambda w: order.index(w.title))
+    REQ_SHEETS[code] = list(wb.sheetnames)
     wb.active = 0
     safe = file_code(code)
     path = OUT / folder / request_name(code)
