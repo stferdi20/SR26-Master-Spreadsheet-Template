@@ -27,7 +27,7 @@ SRC = ROOT / "source"
 OUT = ROOT / "output"
 
 # ---------------------------------------------------------------- settings
-VERSION = "v0.15"  # bump on every revision; appears in file names and Read me
+VERSION = "v0.16"  # bump on every revision; appears in file names and Read me
 VERSION_HISTORY = [
     ("v0.1", "First draft: requirements matrix, pilot faculty and central-unit requests, tracker, evidence register."),
     ("v0.2", "SR25-style faculty wording and 'How SST will use'; scoring/T1/T2 formulas; Legal & Risk; project tabs; linked SR25 responses tab."),
@@ -44,6 +44,7 @@ VERSION_HISTORY = [
     ("v0.13", "Formatting fixes in request files: no frozen panes (titles were clipped), 'SR25 response' header no longer merged across hidden columns, wider column H."),
     ("v0.14", "No target status rating in 2026 (Rose): rating column and definitions removed from all requests; A1 renamed 'A1. Response summary' (units asked, responses received, awaiting, owner confirmed); T1/T2 and tracker updated; columns shift left by one."),
     ("v0.15", "Fix workbook links: external reference written in Excel's syntax ('[1]Sheet'!A1, not [1]'Sheet'!A1); link lists the request file's actual sheet names."),
+    ("v0.16", "Master unit tabs: SR25 columns I–K group now shows its [+] button (outline level declared as in SR25; collapsed flag on column H)."),
 ]
 # Team timeline (Oct 2026): early engagement w/c 26 Oct; requests issued W1 Nov; 6-week collection to 15 Dec;
 # first review W3 Dec; targeted follow-up W3–W4 Dec; consolidated master W4 Dec.
@@ -455,6 +456,10 @@ def setup_block_sheet(ws, outline=True):
             ws.column_dimensions[col].outlineLevel = 1
         ws.column_dimensions[col].hidden = True
     ws.sheet_properties.outlinePr.summaryRight = False
+    if outline:  # Excel only draws the [+] when the summary column next to the group (H) is flagged collapsed
+        ws.column_dimensions["H"].collapsed = True
+        ws.sheet_view.showOutlineSymbols = True
+        ws.sheet_format.outlineLevelCol = 1  # as SR25: reserves the outline bar where the [+] is drawn
 
 
 def instructions(ws, unit_name):
