@@ -27,7 +27,7 @@ SRC = ROOT / "source"
 OUT = ROOT / "output"
 
 # ---------------------------------------------------------------- settings
-VERSION = "v0.21"  # bump on every revision; appears in file names and Read me
+VERSION = "v0.22"  # bump on every revision; appears in file names and Read me
 VERSION_HISTORY = [
     ("v0.1", "First draft: requirements matrix, pilot faculty and central-unit requests, tracker, evidence register."),
     ("v0.2", "SR25-style faculty wording and 'How SST will use'; scoring/T1/T2 formulas; Legal & Risk; project tabs; linked SR25 responses tab."),
@@ -50,13 +50,14 @@ VERSION_HISTORY = [
     ("v0.19", "All 15 request workbooks linked (4 faculties + 11 central units): answers into each unit tab, stories into the compiled tab."),
     ("v0.20", "Request files for CI&S and L&R named with '&' (CI&S / L&R - SR26 sustainability reporting request.xlsx); master links updated."),
     ("v0.21", "All 9 faculties: FAM, FEIT, FoE, MLS and MDHS added (same 9 questions, own SR25 responses, linked into the master)."),
+    ("v0.22", "CDSS references unified to the Sustainability Strategy team (SST) – same team; MRE section label clarified (MBI = Melbourne Biodiversity Institute, NB2(a) nature footprint)."),
 ]
 # Team timeline (Oct 2026): early engagement w/c 26 Oct; requests issued W1 Nov; 6-week collection to 15 Dec;
 # first review W3 Dec; targeted follow-up W3–W4 Dec; consolidated master W4 Dec.
 DUE_DT = date(2026, 12, 15)
 DUE_DATE = "Tuesday 15 December 2026"
 STORIES_DUE = DUE_DATE
-CONTACT = "CDSS – questions and clarifications are recorded centrally (contact email TBC); optional 1:1 meetings available on request"
+CONTACT = "Sustainability Strategy team (SST) – questions and clarifications are recorded centrally (contact email TBC); optional 1:1 meetings available on request"
 PILOT_FACULTIES = {  # SR25 code -> full name
     "ABP": "Faculty of Architecture, Building and Planning",
     "ARTS": "Faculty of Arts",
@@ -93,7 +94,7 @@ CENTRAL = [
      [("CIOG – Responsible AI & digital", lambda r: "CIOG" in r["stake"])]),
     ("MRE", "Melbourne Research and Enterprise (MRE)",
      "Chancellery Research and Enterprise",
-     [("MRE – Research (incl. MBI – TBC)", lambda r: "MRE" in r["stake"] or "MBI" in r["stake"])]),
+     [("MRE – Research (incl. MBI for NB2(a) nature footprint)", lambda r: "MRE" in r["stake"] or "MBI" in r["stake"])]),
     # Chancellery units – each reported separately (SR25 Chancellery tab sections), named as the team uses them
     ("AC&M", "Advancement, Communication and Marketing (AC&M)", "Chancellery – Advancement, Communications & Marketing",
      [("AC&M – Advancement, Communication and Marketing", lambda r: r["row"] in (16, 54))]),
@@ -868,7 +869,7 @@ def master(qual, quan, fac_rows, central_sections, sr25_all):
         for label, _ in secs:
             units.append((code, name, sr25name, label, "TBC", ""))
     units += [
-        ("TBC", "CGOP / CDEP / CDSS", "Not in SR25 master", "—", "TBC", "Structure changes TBC – confirm before requests are issued."),
+        ("TBC", "CGOP / CDEP", "Not in SR25 master", "—", "TBC", "Structure changes TBC (CDEP estate planning now in CI&S; SST = CD Sustainability Strategy, the reporting team)."),
     ]
     for k, u in enumerate(units):
         for i, v in enumerate(u):
@@ -975,7 +976,7 @@ def master(qual, quan, fac_rows, central_sections, sr25_all):
     hdr_row(ws, 4, ["#", "Date raised", "Issue / question", "Impact", "Ref / unit", "Owner", "Proposed action", "Status"])
     issues = [
         ("Climate resilience maturity (CL3(a)) and Estate & infrastructure indicators – confirm owner and request with Gerard.", "CL3(a); EI1(a)–(d)", "Stefanus", "Meet Gerard", "Open"),
-        ("Confirm whether CGOP, CDEP and CDSS structures have changed since the 2025 master spreadsheet stakeholder mapping.", "Stakeholder map", "Stefanus", "Confirm with team", "Open"),
+        ("Confirm whether CGOP and CDEP structures have changed since the 2025 master spreadsheet stakeholder mapping.", "Stakeholder map", "Stefanus", "Confirm with team", "Open"),
         ("Business Services split into CIOG (AI) and ESG (nature & biodiversity, waste & circular economy, part of quant. climate leadership) – confirm contacts.", "CIOG; ESG", "TBC", "Confirm contacts", "Open"),
         ("Procurement sits with CFOG (RP1(a) procurement case studies routed to CFOG – Procurement although the Qual sheet names no stakeholder); estate planning centralised in CI&S – requests issued centrally, not to faculties.", "CFOG; CI&S", "—", "Noted", "Closed"),
         ("Chancellery units reported separately, as SR25: AC&M, MRE, GCE, Education, SaSS and Indigenous each have their own request and master tab. Alumni (EE1(d)) asked of SaSS only.", "Stakeholder map", "Stefanus", "Confirm contacts", "Closed"),
@@ -984,7 +985,7 @@ def master(qual, quan, fac_rows, central_sections, sr25_all):
         ("TR2(b) 'Documented progress of strategic initiatives, incl. Impact Accelerators' reuses the TR2(d) case-study wording and has no stakeholder in the Qual sheet – left as-is.", "TR2(b)", "TBC", "Review wording/owner", "Open"),
         ("Quantitative-only rows (no stakeholder in the Qual sheet) removed from the requirements matrix and moved to '2. Quant coverage'; Databook gaps requested in Tab 4 of the owning central unit's request.", "TR2(b); CL1(a)-(b); CL2(b); NB1(a); CE1-2; RP2; RI1(a)", "Stefanus", "Confirm owners and Databook coverage with Chris", "Open"),
         ("No target status rating requested in 2026 (Rose): rating column removed from all requests; A1 now summarises responses instead of scoring.", "All", "Director, Sustainability", "Revisit for 2027 with the new traffic-light framework", "Closed"),
-        ("Timeline updated to the team plan: requests issued W1 Nov, responses and stories due 15 Dec 2026, first review W3 Dec, follow-up W3–W4 Dec, consolidation W4 Dec. Databook figures given by 15 Dec are provisional; final figures confirmed Jan–Feb.", "All", "Stefanus", "Confirm exact issue date and CDSS contact", "Open"),
+        ("Timeline updated to the team plan: requests issued W1 Nov, responses and stories due 15 Dec 2026, first review W3 Dec, follow-up W3–W4 Dec, consolidation W4 Dec. Databook figures given by 15 Dec are provisional; final figures confirmed Jan–Feb.", "All", "Stefanus", "Confirm exact issue date and SST contact email", "Open"),
         ("Faculty requests cut to 9 questions (SR25 sent 10) after the ABP walkthrough; all 9 faculties receive the same set.", "Faculties", "Stefanus", "Monitor burden during collection", "Closed"),
     ]
     from datetime import date
