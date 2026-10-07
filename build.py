@@ -27,7 +27,7 @@ SRC = ROOT / "source"
 OUT = ROOT / "output"
 
 # ---------------------------------------------------------------- settings
-VERSION = "v0.18"  # bump on every revision; appears in file names and Read me
+VERSION = "v0.19"  # bump on every revision; appears in file names and Read me
 VERSION_HISTORY = [
     ("v0.1", "First draft: requirements matrix, pilot faculty and central-unit requests, tracker, evidence register."),
     ("v0.2", "SR25-style faculty wording and 'How SST will use'; scoring/T1/T2 formulas; Legal & Risk; project tabs; linked SR25 responses tab."),
@@ -47,6 +47,7 @@ VERSION_HISTORY = [
     ("v0.16", "Master unit tabs: SR25 columns I–K group now shows its [+] button (outline level declared as in SR25; collapsed flag on column H)."),
     ("v0.17", "Excel-online formatting pass on every tab: row 1 header and version removed; header rows frozen only (no frozen columns clipping titles); row heights sized to wrapped text; taller title row."),
     ("v0.18", "Workbook links look up each indicator ref (and story number) in the request file instead of fixed rows, so they survive row changes; all four pilot faculties linked (ABP, Arts, FBE, Science)."),
+    ("v0.19", "All 15 request workbooks linked (4 faculties + 11 central units): answers into each unit tab, stories into the compiled tab."),
 ]
 # Team timeline (Oct 2026): early engagement w/c 26 Oct; requests issued W1 Nov; 6-week collection to 15 Dec;
 # first review W3 Dec; targeted follow-up W3–W4 Dec; consolidated master W4 Dec.
@@ -291,9 +292,13 @@ for _code, _name, _sr25, _secs in CENTRAL:
 
 
 # Request workbooks linked into the master (same Teams folder; relative workbook links). Add codes as files are uploaded.
-LINKED_UNITS = ["ABP", "ARTS", "FBE", "SCI"]
+STORY_ROWS = {}  # unit code -> first story-slot row on the master's Highlighted stories tab
 REQ_SHEETS = {}  # code -> sheet names of the request workbook (for the external link part)
 REQ_ROWS = {}  # code -> {"refs": {ref: row on tab 1}, "stories": [rows on tab 2]} – filled by request_workbook
+
+
+def linked_units():
+    return list(PILOT_FACULTIES) + [c[0] for c in CENTRAL]
 
 
 def request_name(code):
@@ -581,6 +586,7 @@ def stories_master(wb):
     units = [(c, f"{c} – {n}") for c, n in PILOT_FACULTIES.items()] + [(c[0], c[1]) for c in CENTRAL]
     r = 6
     for code, name in units:
+        STORY_ROWS[code] = r
         for k in range(3):
             vals = [name if k == 0 else "", k + 1] + [""] * (len(resp) - 2 + len(sst))
             for i, v in enumerate(vals):
@@ -612,10 +618,11 @@ def link_cells(wb, reg):
     links survive rows being inserted or removed in the request file."""
     tmpl, stor = "1. Reporting template", "2. OPTIONAL highlighted stories"
     green = PatternFill("solid", fgColor="E2EFDA")
-    for n, code in enumerate(LINKED_UNITS, start=1):
+    for n, code in enumerate(linked_units(), start=1):
         rows = REQ_ROWS[code]
+        keys = {code} | {lab.split(" (")[0] for c in CENTRAL if c[0] == code for lab, _ in c[3]}
         for key, sheet, r0, r1 in reg:
-            if key != code:
+            if key not in keys:
                 continue
             ws = wb[sheet]
             for r in range(r0, r1 + 1):
@@ -628,7 +635,7 @@ def link_cells(wb, reg):
                     ws.cell(r, c).value = f'=IFERROR(IF({a}="","",{a}),"")'
                     ws.cell(r, c).fill = green
         st = wb["Highlighted stories"]
-        first = next(r for r in range(6, st.max_row + 1) if str(st.cell(r, 2).value or "").startswith(code + " "))
+        first = STORY_ROWS[code]
         for k in range(3):
             r = first + k
             for i in range(len(STORY_COLS)):
@@ -991,8 +998,7 @@ def master(qual, quan, fac_rows, central_sections, sr25_all):
     wb.properties.version = VERSION
     finalize(wb)
     wb.save(p)
-    if LINKED_UNITS:
-        add_external_links(p, LINKED_UNITS)
+    add_external_links(p, linked_units())
     patch_outline(p)
     return p.name
 

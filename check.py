@@ -138,7 +138,7 @@ for r in range(6, qc.max_row + 1):
 # ---- workbook links: master points at the linked request files with the right rows
 import zipfile
 z = zipfile.ZipFile(master_path)
-for n, code in enumerate(B.LINKED_UNITS, start=1):
+for n, code in enumerate(B.linked_units(), start=1):
     rel = z.read(f"xl/externalLinks/_rels/externalLink{n}.xml.rels").decode()
     from urllib.parse import quote
     check(quote(B.request_name(code)) in rel, f"external link {n} targets {B.request_name(code)} (relative, same folder)")
@@ -154,14 +154,14 @@ for n, code in enumerate(B.LINKED_UNITS, start=1):
     tmpl = load_workbook(next(f for f in req_files if f.endswith(B.request_name(code))))
     check(tmpl["1. Reporting template"].protection.sheet and tmpl["2. OPTIONAL highlighted stories"].protection.sheet,
           f"{code}: request layout protected")
-check(z.read("xl/workbook.xml").decode().count("<externalReference ") == len(B.LINKED_UNITS), "workbook declares each external link once")
+check(z.read("xl/workbook.xml").decode().count("<externalReference ") == len(B.linked_units()), "workbook declares each external link once")
 allf = " ".join(f for n in z.namelist() if n.startswith("xl/worksheets/") for f in re.findall(r"<f>([^<]*)</f>", z.read(n).decode()))
 check(not re.search(r"\[\d+\]'", allf), "external references use Excel syntax '[n]Sheet'!A1 (bracket inside the quotes)")
 sto = M["Highlighted stories"]
-for n, code in enumerate(B.LINKED_UNITS, start=1):
+for n, code in enumerate(B.linked_units(), start=1):
     k = sum(1 for row in sto.iter_rows() for x in row if isinstance(x.value, str) and f"'[{n}]2. OPTIONAL highlighted stories'" in x.value)
     check(k == 15, f"{code}: 3 story slots x 5 fields linked by story number ({k})")
-for n, code in enumerate(B.LINKED_UNITS, start=1):
+for n, code in enumerate(B.linked_units(), start=1):
     ext = z.read(f"xl/externalLinks/externalLink{n}.xml").decode()
     names = re.findall(r'sheetName val="([^"]+)"', ext)
     real = load_workbook(next(f for f in req_files if f.endswith(B.request_name(code)))).sheetnames
