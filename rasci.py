@@ -11,7 +11,7 @@ SR25_CONTACT = {"ABP": "Gerard", "ARTS": "Rose", "FBE": "Katie", "SCI": "Katie",
                 "CFOG – Procurement": "Chris", "CFOG – Treasury & Investments": "Chris", "ESG": "All", "CIOG": "TBC",
                 "MRE": "Director", "L&R": "Gerard", "Legal & Risk": "Gerard", "SST": "All", "CH*": "Director",
                 "AC&M": "Rose", "GCE": "Gerard", "Education": "Katie", "SaSS": "Rose", "Indigenous": "Gerard", "COO*": "Director",
-                "FAC": "ABP Gerard; Arts Rose; FBE Katie; SCI Katie"}
+                "FAC": "ABP Gerard; Arts Rose; FBE Katie; SCI Katie; FAM Rose; FEIT Gerard; FoE Rose; MLS Rose; MDHS Gerard"}
 CODES = [("A", "Accountable"), ("A and R", "Accountable and Responsible"), ("R", "Responsible – narrative request"),
          ("R (quant)", "Responsible – figures for the Databook (Tab 4)"), ("R (compile)", "SST compiles from other responses / no request"),
          ("S", "Support"), ("C", "Consulted"), ("I", "Informed")]

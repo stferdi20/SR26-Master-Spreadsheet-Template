@@ -27,7 +27,7 @@ SRC = ROOT / "source"
 OUT = ROOT / "output"
 
 # ---------------------------------------------------------------- settings
-VERSION = "v0.20"  # bump on every revision; appears in file names and Read me
+VERSION = "v0.21"  # bump on every revision; appears in file names and Read me
 VERSION_HISTORY = [
     ("v0.1", "First draft: requirements matrix, pilot faculty and central-unit requests, tracker, evidence register."),
     ("v0.2", "SR25-style faculty wording and 'How SST will use'; scoring/T1/T2 formulas; Legal & Risk; project tabs; linked SR25 responses tab."),
@@ -49,6 +49,7 @@ VERSION_HISTORY = [
     ("v0.18", "Workbook links look up each indicator ref (and story number) in the request file instead of fixed rows, so they survive row changes; all four pilot faculties linked (ABP, Arts, FBE, Science)."),
     ("v0.19", "All 15 request workbooks linked (4 faculties + 11 central units): answers into each unit tab, stories into the compiled tab."),
     ("v0.20", "Request files for CI&S and L&R named with '&' (CI&S / L&R - SR26 sustainability reporting request.xlsx); master links updated."),
+    ("v0.21", "All 9 faculties: FAM, FEIT, FoE, MLS and MDHS added (same 9 questions, own SR25 responses, linked into the master)."),
 ]
 # Team timeline (Oct 2026): early engagement w/c 26 Oct; requests issued W1 Nov; 6-week collection to 15 Dec;
 # first review W3 Dec; targeted follow-up W3–W4 Dec; consolidated master W4 Dec.
@@ -61,6 +62,11 @@ PILOT_FACULTIES = {  # SR25 code -> full name
     "ARTS": "Faculty of Arts",
     "FBE": "Faculty of Business and Economics",
     "SCI": "Faculty of Science",
+    "FAM": "Faculty of Fine Arts and Music",
+    "FEIT": "Faculty of Engineering and Information Technology",
+    "FoE": "Faculty of Education",
+    "MLS": "Melbourne Law School",
+    "MDHS": "Faculty of Medicine, Dentistry and Health Sciences",
 }
 # Central units: SR26 name, SR25 equivalent, sections (name, matcher on Qual row)
 ESTATE_PA = {"Estate and infrastructure"}
@@ -272,7 +278,7 @@ FACULTY_MERGED = {10: 8}  # EE1(c) is covered by the faculty EE1(a) question
 
 
 def asks_faculties(r):
-    """True if the pilot faculties receive a request for this Qual row."""
+    """True if the faculties receive a request for this Qual row."""
     return ("Faculties" in r["stake"] and r["row"] not in EXCLUSIVE and r["row"] not in FACULTY_MERGED
             and r["row"] not in FACULTY_REMOVED)
 
@@ -370,7 +376,7 @@ def read_sr25_tab(tab, section=None):
 def sr25_for(code):
     """SR25 sections for a faculty code or central unit code."""
     if code in PILOT_FACULTIES:
-        return [x for x in read_sr25_tab("Faculties") if x[0].upper() == code]
+        return [x for x in read_sr25_tab("Faculties") if x[0].upper() == code.upper()]
     src = SR25_SOURCES.get(code)
     return read_sr25_tab(*src) if src else []
 
@@ -792,7 +798,7 @@ def master(qual, quan, fac_rows, central_sections, sr25_all):
     title(ws, "SR26 data collection master spreadsheet", "2026 Sustainability Report – data collection master")
     readme = [
         ("Purpose", "Central record of SR26 data requirements, owners, reporting requests, responses and evidence. Adapted from the 2025 end-year reporting master spreadsheet (V0.2) and the Sustainability 2030 updated targets (Qual and Quan worksheets)."),
-        ("Status", f"DRAFT {VERSION} – pilot with {len(PILOT_FACULTIES)} faculties ({', '.join(PILOT_FACULTIES)}) and {len(CENTRAL)} central units ({', '.join(c[0] for c in CENTRAL)})."),
+        ("Status", f"DRAFT {VERSION} – {len(PILOT_FACULTIES)} faculties ({', '.join(PILOT_FACULTIES)}) and {len(CENTRAL)} central units ({', '.join(c[0] for c in CENTRAL)})."),
         ("Reporting approach", "Transition year: cover all of CY2026, distinguishing former Sustainability Plan 2030 activity from foundations and early actions after the Sustainability 2030 launch (~20 Oct 2026). Databook is the authoritative quantitative source. No target status rating (Met/Partially met/Not met) is requested in 2026 (team decision) – requests collect commentary and evidence only."),
         ("Key dates (TBC)", f"Early engagement (existing meetings): w/c 26 Oct 2026 | Requests issued: W1 Nov (from 2 Nov) | Collection period incl. optional 1:1 meetings: 2 Nov – 15 Dec (6 weeks) | Responses and highlighted stories due: {DUE_DATE} | First review: W3 Dec | Targeted follow-up: W3–W4 Dec | Consolidated master: W4 Dec | Sustainability Reporting Review Group: ~15 Feb 2027 | VCAG: 16 Feb & ~2 Mar 2027"),
         ("Tabs", "1. Requirements matrix – every S2030 qualitative indicator, owner and request\n"
@@ -811,7 +817,7 @@ def master(qual, quan, fac_rows, central_sections, sr25_all):
                  "Issues log – open questions, TBCs and decisions\n"
                  "Project management tabs (overview, plan, timeline, comms/web to-do, content checklist, page index) are in the separate 'SR26 project management' workbook"),
         ("Refs", "Refs are new SR26 codes: priority-area code + target number + indicator letter (e.g. EE1(a) = Exceptional education, target 1, indicator a). 'Related SR25 ref' links to the closest SP2030 (2025) target where one exists."),
-        ("Regenerating", "Workbooks are generated by build.py in the repository. Edit the settings at the top (due dates, pilot faculties, unit mapping) and re-run to produce request workbooks for additional faculties/units."),
+        ("Regenerating", "Workbooks are generated by build.py in the repository. Edit the settings at the top (due dates, faculties, unit mapping) and re-run to produce request workbooks for additional faculties/units."),
         ("Version history", "\n".join(f"{v}: {t}" for v, t in VERSION_HISTORY)),
         ("Request wording", "Faculty requests are rewritten in the SR25 style and point to each faculty's end-2025 response (see Request wording log). Central-unit requests use the S2030 'Qual' worksheet wording as-is."),
         ("Formulas", "Responses must be pasted into the Faculties/central-unit tabs keeping the same rows – A1, 0.5 and T2 look them up by Ref. Do not insert rows inside a block; add new units by re-running build.py."),
@@ -835,7 +841,7 @@ def master(qual, quan, fac_rows, central_sections, sr25_all):
         rr = 6 + k
         to = [u[0] for u in CENTRAL for s in u[3] if s[1](r)]
         if asks_faculties(r):
-            to = ["Faculties (pilot)"] + to
+            to = ["Faculties"] + to
         channel = "Tailored request" if to else "TBC"
         qc = qcomp.get(r["ref"])
         qtxt = f"Yes – {qc['indb']}; see 2. Quant coverage" if qc else ""
@@ -979,7 +985,7 @@ def master(qual, quan, fac_rows, central_sections, sr25_all):
         ("Quantitative-only rows (no stakeholder in the Qual sheet) removed from the requirements matrix and moved to '2. Quant coverage'; Databook gaps requested in Tab 4 of the owning central unit's request.", "TR2(b); CL1(a)-(b); CL2(b); NB1(a); CE1-2; RP2; RI1(a)", "Stefanus", "Confirm owners and Databook coverage with Chris", "Open"),
         ("No target status rating requested in 2026 (Rose): rating column removed from all requests; A1 now summarises responses instead of scoring.", "All", "Director, Sustainability", "Revisit for 2027 with the new traffic-light framework", "Closed"),
         ("Timeline updated to the team plan: requests issued W1 Nov, responses and stories due 15 Dec 2026, first review W3 Dec, follow-up W3–W4 Dec, consolidation W4 Dec. Databook figures given by 15 Dec are provisional; final figures confirmed Jan–Feb.", "All", "Stefanus", "Confirm exact issue date and CDSS contact", "Open"),
-        ("20 indicators are requested from each faculty (SR25 sent 10). Monitor burden in pilot.", "Faculties", "TBC", "Review after pilot", "Open"),
+        ("Faculty requests cut to 9 questions (SR25 sent 10) after the ABP walkthrough; all 9 faculties receive the same set.", "Faculties", "Stefanus", "Monitor burden during collection", "Closed"),
     ]
     from datetime import date
     for k, it in enumerate(issues):

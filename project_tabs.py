@@ -105,7 +105,7 @@ def project_tabs(wb):
         ("Project charter, schedule, RASCI, decision log, issues register", "Approved by Oct", D(2026, 9, 28), D(2026, 10, 23), "SST", "Director, Sustainability", "", "Comms, design", "High"),
         ("Map refreshed targets/indicators to Databook, systems, owners", "Requirements matrix", D(2026, 9, 21), D(2026, 10, 16), "Stefanus", "Gerard Healey", "Rose", "Data owners", "High"),
         ("Confirm stakeholder structure (CGOP/CDEP/CDSS) and owners (Gerard: resilience, estate)", "Stakeholder map", D(2026, 10, 5), D(2026, 10, 16), "Stefanus", "Gerard Healey", "", "", "High"),
-        ("Pilot request templates with 4 faculties (ABP, Arts, FBE, Science)", "Pilot feedback", D(2026, 10, 12), D(2026, 10, 30), "Stefanus", "Gerard Healey", "", "ADs Sustainability", "High"),
+        ("Test request templates (ABP walkthrough) and Teams workbook links", "Templates and links tested", D(2026, 10, 12), D(2026, 10, 30), "Stefanus", "Gerard Healey", "", "ADs Sustainability", "High"),
         ("Approve Review Group criteria, decision rights, escalation pathway", "Before collection", D(2026, 10, 5), D(2026, 10, 30), "SST", "Director, Sustainability", "", "Review Group", "Medium"),
         ("Process design & launch (Oct 2026)", None),
         ("Finalise templates and evidence register", "Templates final", D(2026, 10, 19), D(2026, 10, 30), "Stefanus", "Gerard Healey", "", "", "High"),

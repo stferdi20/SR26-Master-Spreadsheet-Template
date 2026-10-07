@@ -85,7 +85,7 @@ rm = M["1. Requirements matrix"]
 issued = {rm.cell(r, 2).value: str(rm.cell(r, 9).value) for r in range(6, rm.max_row + 1) if rm.cell(r, 2).value}
 check(set(issued) == ref_ok, f"requirements matrix holds exactly the {len(ref_ok)} non-quant-only indicators")
 for code, rows in req_rows.items():
-    tag = "Faculties (pilot)" if code in B.PILOT_FACULTIES else code
+    tag = "Faculties" if code in B.PILOT_FACULTIES else code
     miss = [r for r in rows if tag not in issued.get(r, "")]
     check(not miss, f"requirements matrix 'issued to' names {tag} for all its requests" + (f" – missing {miss}" if miss else ""))
 
