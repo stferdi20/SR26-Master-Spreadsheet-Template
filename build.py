@@ -27,7 +27,7 @@ SRC = ROOT / "source"
 OUT = ROOT / "output"
 
 # ---------------------------------------------------------------- settings
-VERSION = "v0.16"  # bump on every revision; appears in file names and Read me
+VERSION = "v0.17"  # bump on every revision; appears in file names and Read me
 VERSION_HISTORY = [
     ("v0.1", "First draft: requirements matrix, pilot faculty and central-unit requests, tracker, evidence register."),
     ("v0.2", "SR25-style faculty wording and 'How SST will use'; scoring/T1/T2 formulas; Legal & Risk; project tabs; linked SR25 responses tab."),
@@ -45,6 +45,7 @@ VERSION_HISTORY = [
     ("v0.14", "No target status rating in 2026 (Rose): rating column and definitions removed from all requests; A1 renamed 'A1. Response summary' (units asked, responses received, awaiting, owner confirmed); T1/T2 and tracker updated; columns shift left by one."),
     ("v0.15", "Fix workbook links: external reference written in Excel's syntax ('[1]Sheet'!A1, not [1]'Sheet'!A1); link lists the request file's actual sheet names."),
     ("v0.16", "Master unit tabs: SR25 columns I–K group now shows its [+] button (outline level declared as in SR25; collapsed flag on column H)."),
+    ("v0.17", "Excel-online formatting pass on every tab: row 1 header and version removed; header rows frozen only (no frozen columns clipping titles); row heights sized to wrapped text; taller title row."),
 ]
 # Team timeline (Oct 2026): early engagement w/c 26 Oct; requests issued W1 Nov; 6-week collection to 15 Dec;
 # first review W3 Dec; targeted follow-up W3–W4 Dec; consolidated master W4 Dec.
@@ -127,10 +128,54 @@ CWRAP = Alignment(wrap_text=True, vertical="center", horizontal="center")
 
 
 def title(ws, text, sub):
-    ws["A1"] = "↑"; ws["A1"].font = Font(name="Aptos", color=NAVY)
-    ws["B1"] = text; ws["B1"].font = Font(name="Arial", size=11)
+    """Sheet title in B2 (row 1 left empty – no running header or version)."""
     ws["B2"] = sub; ws["B2"].font = Font(name="Aptos", size=22, bold=True, color=NAVY)
+    ws.row_dimensions[2].height = 34
     ws.sheet_view.showGridLines = False
+
+
+def finalize(wb):
+    """Last pass before saving, for Excel online (which does not auto-fit): freeze header rows only (a frozen column
+    clips titles in column B), and size rows to their wrapped text."""
+    import math
+    from openpyxl.utils import column_index_from_string
+    for ws in wb.worksheets:
+        fp = ws.freeze_panes
+        if fp:
+            row = int("".join(ch for ch in fp if ch.isdigit()))
+            ws.freeze_panes = f"A{row}" if row <= 12 else None
+        width = {}
+        for c in range(1, ws.max_column + 1):
+            d = ws.column_dimensions[get_column_letter(c)]
+            width[c] = 0 if d.hidden else (d.width or 8.43)
+        span, skip = {}, set()
+        for m in ws.merged_cells.ranges:
+            cells = {(r, c) for r in range(m.min_row, m.max_row + 1) for c in range(m.min_col, m.max_col + 1)}
+            if m.max_row > m.min_row:
+                skip |= cells           # multi-row blocks keep their own heights
+            else:
+                span[(m.min_row, m.min_col)] = sum(width[c] for c in range(m.min_col, m.max_col + 1))
+                skip |= cells - {(m.min_row, m.min_col)}
+        for row in ws.iter_rows():
+            need = 0
+            for cell in row:
+                v = cell.value
+                if not isinstance(v, str) or v.startswith("=") or (cell.row, cell.column) in skip:
+                    continue
+                size = cell.font.sz or 11
+                w = span.get((cell.row, cell.column), width.get(cell.column, 8.43))
+                if not w:
+                    continue
+                if cell.alignment.wrap_text:
+                    per_line = max(1.0, w * 1.05 * 11 / size * (0.9 if cell.font.b else 1))
+                    lines = sum(max(1, math.ceil(len(p) / per_line)) for p in v.split("\n"))
+                else:
+                    lines = 1
+                need = max(need, lines * size * 1.5 + 6)  # margin: Excel online renders slightly wider
+            if need:
+                cur = ws.row_dimensions[row[0].row].height or 15
+                if need > cur:
+                    ws.row_dimensions[row[0].row].height = min(409, round(need))
 
 
 def hdr_row(ws, row, headers, col=2, fill=HDR, font=WHITE_B):
@@ -687,7 +732,7 @@ def request_workbook(code, name, sections, sr25, ref_map=None, sr25_sections=Non
     lists = lists_sheet(wb)
     quant_refs = quant.unit_quant_tab(wb, code, name, quant.owned_points(DATABOOK, code), DUE_DATE) if folder != "faculty_requests" else set()
     anchors = sr25_sheet(wb, name, sr25_sections or [], ref_map if ref_map is not None else SR25_MAP, qual_by_row or {})
-    title(ws, f"SR26 sustainability reporting ({VERSION})", "SR26 sustainability reporting request")
+    title(ws, "SR26 sustainability reporting", "SR26 sustainability reporting request")
     setup_block_sheet(ws, outline=False); instructions(ws, name)
     top, rreg = 11, []
     for label, rows in sections:
@@ -715,6 +760,8 @@ def request_workbook(code, name, sections, sr25, ref_map=None, sr25_sections=Non
     safe = file_code(code)
     path = OUT / folder / request_name(code)
     path.parent.mkdir(parents=True, exist_ok=True)
+    wb.properties.version = VERSION
+    finalize(wb)
     wb.save(path)
     return path.name
 
@@ -933,6 +980,8 @@ def master(qual, quan, fac_rows, central_sections, sr25_all):
     wb.move_sheet("Lists", offset=len(wb.sheetnames))
     OUT.mkdir(exist_ok=True)
     p = OUT / f"SR26 end-year reporting master spreadsheet - {VERSION}.xlsx"
+    wb.properties.version = VERSION
+    finalize(wb)
     wb.save(p)
     if LINKED_UNITS:
         add_external_links(p, LINKED_UNITS)
@@ -1167,6 +1216,7 @@ def main():
     del pwb[pwb.sheetnames[0]]
     pwb.move_sheet("Lists", offset=len(pwb.sheetnames))
     pwb.active = 0
+    finalize(pwb)
     pwb.save(OUT / f"SR26 project management - {VERSION}.xlsx")
     print("  SR26 project management -", VERSION)
 
