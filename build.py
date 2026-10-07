@@ -586,6 +586,22 @@ def link_cells(wb, reg):
                 st.cell(first + k, 4 + i).fill = PatternFill("solid", fgColor="E2EFDA")
 
 
+def patch_outline(path):
+    """openpyxl drops sheetFormatPr/@outlineLevelCol on save; without it Excel draws no [+] for grouped columns."""
+    import zipfile
+    zf = zipfile.ZipFile(path)
+    files = {n: zf.read(n) for n in zf.namelist()}
+    zf.close()
+    for n, b in files.items():
+        if n.startswith("xl/worksheets/sheet"):
+            x = b.decode()
+            if 'outlineLevel="1"' in x and "outlineLevelCol" not in x:
+                files[n] = x.replace("<sheetFormatPr ", '<sheetFormatPr outlineLevelCol="1" ', 1).encode()
+    with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as z:
+        for n in ["[Content_Types].xml"] + [k for k in files if k != "[Content_Types].xml"]:
+            z.writestr(n, files[n])
+
+
 def add_external_links(path, codes):
     """Inject Excel external-link parts (relative to the master's folder) for each linked request workbook."""
     import zipfile
@@ -920,6 +936,7 @@ def master(qual, quan, fac_rows, central_sections, sr25_all):
     wb.save(p)
     if LINKED_UNITS:
         add_external_links(p, LINKED_UNITS)
+    patch_outline(p)
     return p.name
 
 

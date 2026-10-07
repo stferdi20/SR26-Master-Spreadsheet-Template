@@ -160,11 +160,13 @@ for n, code in enumerate(B.LINKED_UNITS, start=1):
     real = load_workbook(next(f for f in req_files if f.endswith(B.request_name(code)))).sheetnames
     check(names == real, f"external link {n} lists {code}'s real sheet names {real}")
 
+import zipfile
 # ---- grouped SR25 columns show their [+] in the master unit tabs (as SR25)
+zx = zipfile.ZipFile(master_path)
+_ids = {name: i for i, name in enumerate(M.sheetnames, start=1)}
 for t in ["Faculties"] + [c[0] for c in B.CENTRAL if c[0] in M.sheetnames]:
-    ws = M[t]
-    check(ws.sheet_format.outlineLevelCol == 1 and ws.column_dimensions["I"].outlineLevel == 1,
-          f"{t}: SR25 columns grouped with an outline bar ([+] button)")
+    x = zx.read(f"xl/worksheets/sheet{_ids[t]}.xml").decode()  # read raw XML: openpyxl itself drops this attribute
+    check('outlineLevelCol="1"' in x and 'outlineLevel="1"' in x, f"{t}: SR25 columns grouped with an outline bar ([+] button)")
 
 # ---- no stale hard-coded text
 alltext = " ".join(str(c.value) for ws in M for row in ws.iter_rows() for c in row if isinstance(c.value, str))
