@@ -144,6 +144,11 @@ for phrase in ["no SR26 request issued", "6 central units", "V0.1", "Quant – D
                "P0 Project overview"]:
     check(phrase not in alltext, f"no stale text '{phrase}'")
 check(f"DRAFT {V}" in alltext, f"Read me shows {V}")
+# old timeline must not survive anywhere (all workbooks)
+for f in [master_path] + req_files + glob.glob(f"output/SR26 project management - {V}.xlsx"):
+    txt = " ".join(str(c.value) for ws in load_workbook(f) for row in ws.iter_rows() for c in row if isinstance(c.value, str))
+    for phrase in ["15 January 2027", "4 December 2026", "4 Dec (TBC)", "15 Jan (TBC)", "Support meetings: January"]:
+        check(phrase not in txt, f"{f.split('/')[-1][:30]}: no old date '{phrase}'")
 
 # ---- report (de-duplicated)
 seen = set()

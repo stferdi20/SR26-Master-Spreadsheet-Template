@@ -129,7 +129,7 @@ def coverage(qual, quan, db):
         if own is None:
             action = note or "SST compiles – no request"
         elif with_data:
-            action = "Owner confirms existing figures and provides CY2026 (provisional Jan, final Feb) – Tab 4 of owner's request"
+            action = "Owner confirms existing figures and provides CY2026 (provisional by 15 Dec, final Jan–Feb) – Tab 4 of owner's request"
         elif pts:
             action = "Owner provides CY2026 (and earlier years if available) and confirms metric definition – Tab 4 of owner's request"
         else:
@@ -223,8 +223,8 @@ def unit_quant_tab(wb, code, name, pts, due):
     ws = wb.create_sheet("4. Quantitative data")
     B.title(ws, "End-2026 target status assessment and reporting", f"Quantitative data – {name}")
     ws["B3"] = ("These figures feed the Sustainability Databook (the University's authoritative quantitative source). Previous years are shown "
-                "for context – please do not alter. Please provide the CY2026 value (provisional figures are fine; we will confirm final "
-                f"figures with you in February), the data source, and any change to definition or boundary. Due: {due}.")
+                "for context – please do not alter. Please provide the CY2026 value (provisional or year-to-date figures are fine; we will confirm final "
+                f"figures with you in January–February), the data source, and any change to definition or boundary. Due: {due}.")
     ws["B3"].alignment = B.WRAP; ws.merge_cells("B3:O3"); ws.row_dimensions[3].height = 48
     gold = PatternFill("solid", fgColor="FFC000")
     ws.merge_cells("B5:J5"); ws["B5"] = "Context only (please do not alter)"

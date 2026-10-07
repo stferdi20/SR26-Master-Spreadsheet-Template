@@ -8,6 +8,7 @@ Run:  python3 build.py
 """
 import re
 import warnings
+from datetime import date
 from pathlib import Path
 
 from openpyxl import Workbook, load_workbook
@@ -26,7 +27,7 @@ SRC = ROOT / "source"
 OUT = ROOT / "output"
 
 # ---------------------------------------------------------------- settings
-VERSION = "v0.8"  # bump on every revision; appears in file names and Read me
+VERSION = "v0.9"  # bump on every revision; appears in file names and Read me
 VERSION_HISTORY = [
     ("v0.1", "First draft: requirements matrix, pilot faculty and central-unit requests, tracker, evidence register."),
     ("v0.2", "SR25-style faculty wording and 'How SST will use'; scoring/T1/T2 formulas; Legal & Risk; project tabs; linked SR25 responses tab."),
@@ -36,10 +37,14 @@ VERSION_HISTORY = [
     ("v0.6", "Chancellery units added following SR25 (ACM, CGCE, Chancellery Education, SASS, Chancellery Indigenous) with linked SR25 responses; cross-tab consistency check (check.py); Impact column added to Issues log (as SR25)."),
     ("v0.7", "Team review: Chancellery units as separate tabs (AC&M, MRE, GCE, Education, SaSS, Indigenous); faculty requests cut down (ABP walkthrough) – EE1(a)+(c) merged, 'any examples' wording, alumni to SaSS, CL2(a)/(c) to AC&M, TR3(a)/(c)/(d) to MRE; simpler evidence register; highlighted stories compiled per unit with SST priority-area columns; project tabs moved to a separate project workbook."),
     ("v0.8", "TR1(b)–(d) to MRE only; EN1(d) removed from faculties (9 faculty questions); note on EE1(c) in T1/T2 that faculty answers sit under EE1(a)."),
+    ("v0.9", "Team timeline applied: early engagement w/c 26 Oct; requests W1 Nov; due 15 Dec 2026 (responses and stories); first review W3 Dec; follow-up W3–W4 Dec; consolidation W4 Dec; CDSS as contact; optional 1:1 meetings; tracker statuses and project timeline updated."),
 ]
-DUE_DATE = "Friday 15 January 2027 (TBC)"
-STORIES_DUE = "Friday 4 December 2026 (TBC)"
-CONTACT = "Sustainability Strategy team (sustainability-strategy@unimelb.edu.au – TBC)"
+# Team timeline (Oct 2026): early engagement w/c 26 Oct; requests issued W1 Nov; 6-week collection to 15 Dec;
+# first review W3 Dec; targeted follow-up W3–W4 Dec; consolidated master W4 Dec.
+DUE_DT = date(2026, 12, 15)
+DUE_DATE = "Tuesday 15 December 2026"
+STORIES_DUE = DUE_DATE
+CONTACT = "CDSS – questions and clarifications are recorded centrally (contact email TBC); optional 1:1 meetings available on request"
 PILOT_FACULTIES = {  # SR25 code -> full name
     "ABP": "Faculty of Architecture, Building and Planning",
     "ARTS": "Faculty of Arts",
@@ -103,7 +108,7 @@ STATUS_DEF = [
     ("Not yet started", "No action has been taken."),
 ]
 SCORES = [("Met or exceeded", 3), ("Partially met", 2), ("Not met", 1), ("Not yet started", 0)]  # as SR25 'Lists (Hide)'
-TRACK_STATUS = ["Not sent", "Sent", "Chased", "Support meeting", "Received", "Under review", "Complete", "Not required"]
+TRACK_STATUS = ["Not sent", "Sent", "1:1 meeting", "Received", "First review", "Follow-up", "Complete", "Not required"]
 
 # ---------------------------------------------------------------- styles (SR25 look)
 NAVY, DARK = "002060", "0E2841"
@@ -619,7 +624,7 @@ def master(qual, quan, fac_rows, central_sections, sr25_all):
         ("Purpose", "Central record of SR26 data requirements, owners, reporting requests, responses and evidence. Adapted from the 2025 end-year reporting master spreadsheet (V0.2) and the Sustainability 2030 updated targets (Qual and Quan worksheets)."),
         ("Status", f"DRAFT {VERSION} – pilot with {len(PILOT_FACULTIES)} faculties ({', '.join(PILOT_FACULTIES)}) and {len(CENTRAL)} central units ({', '.join(c[0] for c in CENTRAL)})."),
         ("Reporting approach", "Transition year: cover all of CY2026, distinguishing former Sustainability Plan 2030 activity from foundations and early actions after the Sustainability 2030 launch (~20 Oct 2026). Databook is the authoritative quantitative source. Target status (Met/Partially met/Not met) retained for now for internal management reporting – rating framework under review."),
-        ("Key dates (TBC)", f"Requests issued: Nov–Dec 2026 | Highlighted stories due: {STORIES_DUE} | Reporting template due: {DUE_DATE} | Support meetings: January 2027 | Sustainability Reporting Review Group: ~15 Feb 2027 | VCAG: 16 Feb & ~2 Mar 2027"),
+        ("Key dates (TBC)", f"Early engagement (existing meetings): w/c 26 Oct 2026 | Requests issued: W1 Nov (from 2 Nov) | Collection period incl. optional 1:1 meetings: 2 Nov – 15 Dec (6 weeks) | Responses and highlighted stories due: {DUE_DATE} | First review: W3 Dec | Targeted follow-up: W3–W4 Dec | Consolidated master: W4 Dec | Sustainability Reporting Review Group: ~15 Feb 2027 | VCAG: 16 Feb & ~2 Mar 2027"),
         ("Tabs", "1. Requirements matrix – every S2030 qualitative indicator, owner and request\n"
                  "2. Quant coverage – every quantitative indicator checked against the Databook draft, owner and action\n"
                  "2b. Databook register – every Databook data point with columns to confirm definition, source, owner\n"
@@ -703,7 +708,7 @@ def master(qual, quan, fac_rows, central_sections, sr25_all):
     ws = wb.create_sheet("4. Request tracker")
     title(ws, "End-2026 target status assessment and reporting", "4. Request tracker")
     cols = ["#", "Group", "Unit / section", "Key contact", "No. of indicators requested", "Request workbook", "Date sent",
-            "Due date", "Reminder date", "Support meeting offered/held", "Response received", "Owner confirmed",
+            "Due date", "Reminder date", "Optional 1:1 meeting (date)", "Response received", "Owner confirmed",
             "Status", "Days overdue", "Notes / follow-up"]
     hdr_row(ws, 9, cols)
     track = [(f"F{i+1}", "Faculty", f"{code} – {name}", len(fac_rows), f"{code} - end-2026 sustainability reporting request - {VERSION}.xlsx")
@@ -715,16 +720,15 @@ def master(qual, quan, fac_rows, central_sections, sr25_all):
             track.append((f"C{n}", "Central", label, len(rows), f"{file_code(code)} - end-2026 sustainability reporting request - {VERSION}.xlsx"))
     for k, t in enumerate(track):
         rr = 10 + k
-        vals = [t[0], t[1], t[2], "TBC", t[3], t[4], None, "15/01/2027", f"=IF(I{rr}=\"\",\"\",I{rr}-7)", "", None, "", "Not sent",
+        vals = [t[0], t[1], t[2], "TBC", t[3], t[4], None, DUE_DT, f"=IF(I{rr}=\"\",\"\",I{rr}-7)", "", None, "", "Not sent",
                 f"=IF(OR(I{rr}=\"\",L{rr}<>\"\"),\"\",MAX(0,TODAY()-I{rr}))", ""]
         for i, v in enumerate(vals):
             body(ws.cell(rr, 2 + i, v))
         from datetime import date
-        ws.cell(rr, 9).value = date(2027, 1, 15)
         for col in (8, 9, 10, 12):
             ws.cell(rr, col).number_format = "dd/mm/yyyy"
     last = 9 + len(track)
-    dv_list(ws, "=Lists!$D$2:$D$9", f"N10:N{last}")
+    dv_list(ws, f"=Lists!$D$2:$D${1 + len(TRACK_STATUS)}", f"N10:N{last}")
     dv_list(ws, "=Lists!$E$2:$E$4", f"M10:M{last}")
     # summary
     ws["B4"] = "Summary"; ws["B4"].font = Font(name="Aptos", bold=True, size=14, color=NAVY)
@@ -797,7 +801,7 @@ def master(qual, quan, fac_rows, central_sections, sr25_all):
         ("TR2(b) 'Documented progress of strategic initiatives, incl. Impact Accelerators' reuses the TR2(d) case-study wording and has no stakeholder in the Qual sheet – left as-is.", "TR2(b)", "TBC", "Review wording/owner", "Open"),
         ("Quantitative-only rows (no stakeholder in the Qual sheet) removed from the requirements matrix and moved to '2. Quant coverage'; Databook gaps requested in Tab 4 of the owning central unit's request.", "TR2(b); CL1(a)-(b); CL2(b); NB1(a); CE1-2; RP2; RI1(a)", "Stefanus", "Confirm owners and Databook coverage with Chris", "Open"),
         ("Target status rating (Met/Partially met/Not met) retained pending revamp of the traffic-light framework.", "All", "Director, Sustainability", "Update templates once agreed", "Open"),
-        ("Due dates are placeholders based on the SR26 approach timeline (stories early Dec; requests due January).", "All", "TBC", "Confirm dates", "Open"),
+        ("Timeline updated to the team plan: requests issued W1 Nov, responses and stories due 15 Dec 2026, first review W3 Dec, follow-up W3–W4 Dec, consolidation W4 Dec. Databook figures given by 15 Dec are provisional; final figures confirmed Jan–Feb.", "All", "Stefanus", "Confirm exact issue date and CDSS contact", "Open"),
         ("20 indicators are requested from each faculty (SR25 sent 10). Monitor burden in pilot.", "Faculties", "TBC", "Review after pilot", "Open"),
     ]
     from datetime import date
