@@ -86,11 +86,10 @@ for code, rows in req_rows.items():
 a1 = M["A1. Data scoring"]
 a1_units = [a1.cell(10, c).value for c in range(8, a1.max_column + 1)]
 a1_units = a1_units[:a1_units.index(None)] if None in a1_units else a1_units
-tc = M["0.5 Target Check"]
-tc_units = [tc.cell(6, c).value for c in range(3, 3 + len(a1_units))]
 t2 = M["T2. Single target review"]
 t2_units = [t2.cell(14, c).value for c in range(3, 3 + len(a1_units))]
-check(a1_units == tc_units == t2_units, f"A1, 0.5 and T2 list the same {len(a1_units)} unit sections")
+check(a1_units == t2_units, f"A1 and T2 list the same {len(a1_units)} unit sections")
+check("0.5 Target Check" not in M.sheetnames and "3c. RASCI triangulation" not in M.sheetnames, "removed tabs are gone")
 n_sections = len(B.PILOT_FACULTIES) + sum(1 for c in B.CENTRAL for _, m in c[3] if any(m(q) for q in qual))
 check(len(a1_units) == n_sections, f"scoring covers every unit section with requests ({n_sections})")
 a1_refs = {a1.cell(r, 2).value for r in range(11, a1.max_row + 1) if a1.cell(r, 2).value}
@@ -128,15 +127,6 @@ for r in range(6, qc.max_row + 1):
     own, n, where = qc.cell(r, 10).value, qc.cell(r, 9).value, qc.cell(r, 12).value
     if own and own != "SST" and n:
         check(own in req_rows and where, f"quant coverage {qc.cell(r, 2).value}: owner {own} has a request with Tab 4")
-
-# ---- triangulation uses SR26 area names that exist in the RASCI
-tri = M["3c. RASCI triangulation"]
-areas = set(hdr.values())
-for r in range(6, tri.max_row + 1):
-    for col in (7, 8, 9):
-        for a in str(tri.cell(r, col).value or "").split("\n"):
-            if a and not a.startswith("Not in SR26") and tri.cell(r, 2).value and re.match(r"[A-Z]{2}\d", str(tri.cell(r, 2).value)):
-                check(a in areas, f"triangulation {tri.cell(r, 2).value}: area '{a}' exists in RASCI")
 
 # ---- no stale hard-coded text
 alltext = " ".join(str(c.value) for ws in M for row in ws.iter_rows() for c in row if isinstance(c.value, str))

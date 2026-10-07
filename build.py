@@ -27,7 +27,7 @@ SRC = ROOT / "source"
 OUT = ROOT / "output"
 
 # ---------------------------------------------------------------- settings
-VERSION = "v0.10"  # bump on every revision; appears in file names and Read me
+VERSION = "v0.11"  # bump on every revision; appears in file names and Read me
 VERSION_HISTORY = [
     ("v0.1", "First draft: requirements matrix, pilot faculty and central-unit requests, tracker, evidence register."),
     ("v0.2", "SR25-style faculty wording and 'How SST will use'; scoring/T1/T2 formulas; Legal & Risk; project tabs; linked SR25 responses tab."),
@@ -39,6 +39,7 @@ VERSION_HISTORY = [
     ("v0.8", "TR1(b)–(d) to MRE only; EN1(d) removed from faculties (9 faculty questions); note on EE1(c) in T1/T2 that faculty answers sit under EE1(a)."),
     ("v0.9", "Team timeline applied: early engagement w/c 26 Oct; requests W1 Nov; due 15 Dec 2026 (responses and stories); first review W3 Dec; follow-up W3–W4 Dec; consolidation W4 Dec; CDSS as contact; optional 1:1 meetings; tracker statuses and project timeline updated."),
     ("v0.10", "RASCI: the four pilot faculties merged into one 'Faculties' column (identical requests; SR25 contacts kept in the contact row)."),
+    ("v0.11", "Removed '3c. RASCI triangulation' (agreed and applied) and '0.5 Target Check' (T2 now reads 'Requested?' from A1)."),
 ]
 # Team timeline (Oct 2026): early engagement w/c 26 Oct; requests issued W1 Nov; 6-week collection to 15 Dec;
 # first review W3 Dec; targeted follow-up W3–W4 Dec; consolidated master W4 Dec.
@@ -631,12 +632,10 @@ def master(qual, quan, fac_rows, central_sections, sr25_all):
                  "2b. Databook register – every Databook data point with columns to confirm definition, source, owner\n"
                  "3. Stakeholder map – SR25 → SR26 unit mapping\n"
                  "3b. RASCI matrix – A/R/S/C/I roles per indicator and area (SR25 RASCI format), with counts\n"
-                 "3c. RASCI triangulation – SR26 roles cross-checked against the SR25 RASCI, gaps flagged\n"
                  "4. Request tracker – sent/chased/received/confirmed status and response rate\n"
                  "Faculties / CI&S / CFOG / ESG / CIOG / MRE / L&R – consolidated responses (copy in from returned request workbooks; same layout)\n"
                  "Highlighted stories – consolidated optional stories and case-study shortlist\n"
                  "A1. Data scoring – auto-pulls every unit's responses per indicator and scores target status (SR25 method)\n"
-                 "0.5 Target Check – which units were asked about each indicator\n"
                  "T1. Manual target review – every indicator with responses from the units asked, side by side, plus reviewer notes\n"
                  "T2. Single target review – pick an indicator and see all units' responses and the scored status\n"
                  "Request wording log – original S2030 wording vs tailored faculty request wording\n"
@@ -703,7 +702,6 @@ def master(qual, quan, fac_rows, central_sections, sr25_all):
     widths(ws, {"A": 4, "B": 14, "C": 40, "D": 44, "E": 40, "F": 18, "G": 50})
     ws.cell(7 + len(units), 2, "Who is responsible for each indicator: see '3b. RASCI matrix'.").font = Font(name="Aptos", italic=True)
     rasci.rasci_tab(wb, QUAL_ALL, COVERAGE, PILOT_FACULTIES, CENTRAL)
-    print("  SR25-only gaps by area:", rasci.triangulation_tab(wb, QUAL_ALL))
 
     # 4. Request tracker
     ws = wb.create_sheet("4. Request tracker")
@@ -918,25 +916,6 @@ def scoring_tabs(wb, qual, reg):
     ws.freeze_panes = "H11"
     ws.auto_filter.ref = f"B10:{get_column_letter(sc0 + len(score_cols) - 1)}{last_a1}"
 
-    # ---- 0.5 Target Check
-    tc = wb.create_sheet("0.5 Target Check")
-    title(tc, "End-2026 target status assessment and reporting", "0.5 Target Check")
-    tc["B3"] = "Which units were asked to report on each indicator (Yes = indicator appears in that unit's tab). Feeds T2."
-    hdr_row(tc, 6, ["Target list"] + [k for k, *_ in units] + ["No. of units requested"])
-    for k, q in enumerate(qual):
-        rr = 7 + k
-        sr = status_rows[q["ref"]]
-        body(tc.cell(rr, 2, q["ref"]), REFF, bold=True)
-        for i in range(n_u):
-            c = tc.cell(rr, 3 + i, f"=IF('A1. Data scoring'!{uc(i)}{sr}<>\"N/A\",\"Yes\",\"No\")"); body(c)
-            c.alignment = CWRAP
-        body(tc.cell(rr, 3 + n_u, f'=COUNTIF(C{rr}:{get_column_letter(2 + n_u)}{rr},"Yes")'))
-    widths(tc, {"B": 10})
-    for i in range(n_u + 1):
-        tc.column_dimensions[get_column_letter(3 + i)].width = 14
-    tc.freeze_panes = "C7"
-    last_tc = 6 + len(qual)
-
     # ---- T1. Manual target review: every indicator, only the units asked, side by side (base review sheet)
     MERGED = merged_note({q["row"]: q["ref"] for q in qual})
     t1 = wb.create_sheet("T1. Manual target review")
@@ -1018,8 +997,9 @@ def scoring_tabs(wb, qual, reg):
     hdr_row(t2, hr, ["Target progress"] + [k for k, *_ in units])
     body(t2.cell(hr + 1, 2, "Requested?"), GREY2, bold=True)
     for i in range(n_u):
-        c = t2.cell(hr + 1, 3 + i, f"=IFERROR(INDEX('0.5 Target Check'!{get_column_letter(3 + i)}$7:{get_column_letter(3 + i)}${last_tc},"
-                                    f"MATCH($C$4,'0.5 Target Check'!$B$7:$B${last_tc},0)),\"\")")
+        # Requested? read straight from A1: 'N/A' there means the unit was not asked
+        c = t2.cell(hr + 1, 3 + i, f"=IFERROR(IF(INDEX('A1. Data scoring'!{uc(i)}$11:{uc(i)}${last_a1},"
+                                    f"MATCH($C$4&\"|\"&\"{FIELDS[0][0]}\",'A1. Data scoring'!$A$11:$A${last_a1},0))=\"N/A\",\"No\",\"Yes\"),\"\")")
         body(c, GREY2); c.alignment = CWRAP
     for fi, (fname, _) in enumerate(FIELDS):
         rr = hr + 2 + fi
