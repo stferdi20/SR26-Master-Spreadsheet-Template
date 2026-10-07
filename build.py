@@ -27,7 +27,7 @@ SRC = ROOT / "source"
 OUT = ROOT / "output"
 
 # ---------------------------------------------------------------- settings
-VERSION = "v0.12"  # bump on every revision; appears in file names and Read me
+VERSION = "v0.13"  # bump on every revision; appears in file names and Read me
 VERSION_HISTORY = [
     ("v0.1", "First draft: requirements matrix, pilot faculty and central-unit requests, tracker, evidence register."),
     ("v0.2", "SR25-style faculty wording and 'How SST will use'; scoring/T1/T2 formulas; Legal & Risk; project tabs; linked SR25 responses tab."),
@@ -41,6 +41,7 @@ VERSION_HISTORY = [
     ("v0.10", "RASCI: the four pilot faculties merged into one 'Faculties' column (identical requests; SR25 contacts kept in the contact row)."),
     ("v0.11", "Removed '3c. RASCI triangulation' (agreed and applied) and '0.5 Target Check' (T2 now reads 'Requested?' from A1)."),
     ("v0.12", "Teams linking (pilot: ABP): request files get stable names and protected layouts; master Faculties ABP rows and ABP story slots linked to the ABP file in the same folder; tracker counts answered and owner-confirmed rows automatically."),
+    ("v0.13", "Formatting fixes in request files: no frozen panes (titles were clipped), 'SR25 response' header no longer merged across hidden columns, wider column H."),
 ]
 # Team timeline (Oct 2026): early engagement w/c 26 Oct; requests issued W1 Nov; 6-week collection to 15 Dec;
 # first review W3 Dec; targeted follow-up W3–W4 Dec; consolidated master W4 Dec.
@@ -378,7 +379,7 @@ SUBS = {12: "(Met or exceeded; partially met; not met; not yet started)",
         16: "Where did this information come from (system, report, survey, person)? Note any gaps or limitations.",
         17: "Select 'Yes' to confirm the information provided is accurate and can be used for reporting",
         18: "Name, role and date of the person confirming"}
-WIDTHS = {"A": 4, "B": 10, "C": 16, "D": 38, "E": 38, "F": 50, "G": 34, "H": 11, "I": 16, "J": 50, "K": 24,
+WIDTHS = {"A": 4, "B": 10, "C": 16, "D": 38, "E": 38, "F": 50, "G": 34, "H": 18, "I": 16, "J": 50, "K": 24,
           "L": 22, "M": 48, "N": 48, "O": 30, "P": 30, "Q": 20, "R": 24}
 
 
@@ -394,9 +395,10 @@ def block(ws, top, unit_label, rows, sr25, lists, reg=None, key=None, ref_map=No
     h1 = top + 2
     for rng, text, fill, fnt in [
         ((3, 7), "Sustainability 2030 target and indicator", HDR, Font(name="Aptos Narrow", size=14, bold=True, color="FFFFFF")),
-        ((8, 11), "End-2025 reporting (click the ref to see your full SR25 response)", HDR, Font(name="Aptos Narrow", size=14, bold=True, color="FFFFFF")),
+        ((8, 8), "SR25 response", HDR, Font(name="Aptos Narrow", size=14, bold=True, color="FFFFFF")),
         ((12, 18), "End-2026 reporting (PLEASE COMPLETE THIS SECTION)", GOLD, Font(name="Aptos Narrow", size=14, bold=True, color=DARK))]:
-        ws.merge_cells(start_row=h1, start_column=rng[0], end_row=h1, end_column=rng[1])
+        if rng[1] > rng[0]:  # no merge across hidden columns (I–K) – the text would be squashed into H
+            ws.merge_cells(start_row=h1, start_column=rng[0], end_row=h1, end_column=rng[1])
         cell = ws.cell(h1, rng[0], text); cell.fill, cell.font, cell.alignment = fill, fnt, CWRAP
     for i, h in enumerate(COLS):
         col = 2 + i
@@ -696,7 +698,7 @@ def request_workbook(code, name, sections, sr25, ref_map=None, sr25_sections=Non
                 refs[ws.cell(r, 2).value] = r
     REQ_ROWS[code] = {"refs": refs, "stories": [10, 11, 12]}
     protect(ws, [(r, c) for r in refs.values() for c in range(12, 19)])
-    ws.freeze_panes = "C14"
+    # no frozen panes: a frozen column clips the title and section names in column B
     st = wb.create_sheet("2. OPTIONAL highlighted stories", 1)
     stories_sheet(st, unit=code)
     protect(st, [(r, c) for r in (10, 11, 12) for c in range(2, 2 + len(STORY_COLS))])
