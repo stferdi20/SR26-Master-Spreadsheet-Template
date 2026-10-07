@@ -10,7 +10,8 @@ SR25_CONTACT = {"ABP": "Gerard", "ARTS": "Rose", "FBE": "Katie", "SCI": "Katie",
                 "CI&S – Estate Planning & Development": "Gerard and Davina", "CI&S – Sustainability Strategy": "Director",
                 "CFOG – Procurement": "Chris", "CFOG – Treasury & Investments": "Chris", "ESG": "All", "CIOG": "TBC",
                 "MRE": "Director", "L&R": "Gerard", "Legal & Risk": "Gerard", "SST": "All", "CH*": "Director",
-                "AC&M": "Rose", "GCE": "Gerard", "Education": "Katie", "SaSS": "Rose", "Indigenous": "Gerard", "FAC*": "Director", "COO*": "Director"}
+                "AC&M": "Rose", "GCE": "Gerard", "Education": "Katie", "SaSS": "Rose", "Indigenous": "Gerard", "COO*": "Director",
+                "FAC": "ABP Gerard; Arts Rose; FBE Katie; SCI Katie"}
 CODES = [("A", "Accountable"), ("A and R", "Accountable and Responsible"), ("R", "Responsible – narrative request"),
          ("R (quant)", "Responsible – figures for the Databook (Tab 4)"), ("R (compile)", "SST compiles from other responses / no request"),
          ("S", "Support"), ("C", "Consulted"), ("I", "Informed")]
@@ -19,6 +20,10 @@ FILL = {"A and R": "00B050", "A": "92D050", "R": "C6EFCE", "R (quant)": "BDD7EE"
 
 
 SR26_CODES = {}  # ref -> {SR26 area label: code}, filled by rasci_tab for the triangulation tab
+
+
+def FACULTIES_LABEL(faculties):
+    return "Faculties (" + ", ".join(faculties) + ")"
 
 
 def area_label(section_label):
@@ -39,8 +44,8 @@ def rasci_tab(wb, qual, coverage, faculties, central):
     ws["B2"].alignment = B.WRAP; ws.merge_cells("B2:G2"); ws.row_dimensions[2].height = 48
 
     # ---- columns: (portfolio, area label, key, is_consolidated)
-    cols = [("Faculty", "Faculties – pilot (all)", "FAC*", True)]
-    cols += [("Faculty", f"{code} – {name.replace('Faculty of ', '')}", code, False) for code, name in faculties.items()]
+    # all pilot faculties receive the same questions, so they share one column (team decision, Rose)
+    cols = [("Faculty", FACULTIES_LABEL(faculties), "FAC", True)]
     chancellery = {"MRE", "AC&M", "GCE", "Education", "SaSS", "Indigenous"}
     for port, star, members in (("COO portfolio", "COO*", [c for c in central if c[0] not in chancellery]),
                                 ("Chancellery", "CH*", [c for c in central if c[0] in chancellery])):
@@ -75,6 +80,8 @@ def rasci_tab(wb, qual, coverage, faculties, central):
         x = ws.cell(6, i); x.fill = B.HDR; x.font = B.WHITE_B; x.alignment = B.CWRAP; x.border = B.BOX
     ws.cell(5, first).font = Font(name="Aptos", bold=True); ws.cell(5, first).alignment = B.CWRAP
     ws.row_dimensions[6].height = 60
+    ws.row_dimensions[3].height = 45
+    ws.column_dimensions[get_column_letter(col_of["FAC"])].width = 18
 
     # ---- who does what per indicator
     cov = {c["ref"]: c for c in coverage}
@@ -84,8 +91,7 @@ def rasci_tab(wb, qual, coverage, faculties, central):
         d = {}
         import build as B
         if B.asks_faculties(q):
-            for code in faculties:
-                d[code] = "R"
+            d["FAC"] = "R"
         for code, name, _, secs in central:
             for label, m in secs:
                 if m(q):
@@ -107,8 +113,6 @@ def rasci_tab(wb, qual, coverage, faculties, central):
         if not d:
             d["SST"] = "R (compile)"
         d["SST"] = d.get("SST", "S")  # SST supports every indicator
-        if any(k in faculties for k in d):
-            d["FAC*"] = "A and R"
         for port, star in (("COO portfolio", "COO*"), ("Chancellery", "CH*")):
             if any(cols[col_of[k] - first][0] == port for k in d if k in col_of):
                 d[star] = "A and R"
@@ -202,8 +206,8 @@ SR25_TARGETS = {8: ["4a"], 9: ["4b"], 10: ["3c"], 11: ["4b", "3e"], 12: ["5a", "
 SR25_AREA = {
     "Faculties (all)": None, "Office of the Provost (all)": None, "COO Portfolio (all)": None,
     "Chancellery Global, Culture & Engagement (all)": None, "CD consolidated": None,
-    "Architecture, Building and Planning": "ABP – Architecture, Building and Planning", "Arts": "ARTS – Arts",
-    "Business and Economics / MBS": "FBE – Business and Economics", "Science": "SCI – Science",
+    "Architecture, Building and Planning": "Faculties (ABP, ARTS, FBE, SCI)", "Arts": "Faculties (ABP, ARTS, FBE, SCI)",
+    "Business and Economics / MBS": "Faculties (ABP, ARTS, FBE, SCI)", "Science": "Faculties (ABP, ARTS, FBE, SCI)",
     "Education": "Non-pilot faculties", "Engineering and IT": "Non-pilot faculties", "Fine Arts and Music": "Non-pilot faculties",
     "Law": "Non-pilot faculties", "MDHS": "Non-pilot faculties",
     "Academic": "Education – Chancellery Education", "Indigenous": "Indigenous – Chancellery Indigenous",

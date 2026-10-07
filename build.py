@@ -27,7 +27,7 @@ SRC = ROOT / "source"
 OUT = ROOT / "output"
 
 # ---------------------------------------------------------------- settings
-VERSION = "v0.9"  # bump on every revision; appears in file names and Read me
+VERSION = "v0.10"  # bump on every revision; appears in file names and Read me
 VERSION_HISTORY = [
     ("v0.1", "First draft: requirements matrix, pilot faculty and central-unit requests, tracker, evidence register."),
     ("v0.2", "SR25-style faculty wording and 'How SST will use'; scoring/T1/T2 formulas; Legal & Risk; project tabs; linked SR25 responses tab."),
@@ -38,6 +38,7 @@ VERSION_HISTORY = [
     ("v0.7", "Team review: Chancellery units as separate tabs (AC&M, MRE, GCE, Education, SaSS, Indigenous); faculty requests cut down (ABP walkthrough) – EE1(a)+(c) merged, 'any examples' wording, alumni to SaSS, CL2(a)/(c) to AC&M, TR3(a)/(c)/(d) to MRE; simpler evidence register; highlighted stories compiled per unit with SST priority-area columns; project tabs moved to a separate project workbook."),
     ("v0.8", "TR1(b)–(d) to MRE only; EN1(d) removed from faculties (9 faculty questions); note on EE1(c) in T1/T2 that faculty answers sit under EE1(a)."),
     ("v0.9", "Team timeline applied: early engagement w/c 26 Oct; requests W1 Nov; due 15 Dec 2026 (responses and stories); first review W3 Dec; follow-up W3–W4 Dec; consolidation W4 Dec; CDSS as contact; optional 1:1 meetings; tracker statuses and project timeline updated."),
+    ("v0.10", "RASCI: the four pilot faculties merged into one 'Faculties' column (identical requests; SR25 contacts kept in the contact row)."),
 ]
 # Team timeline (Oct 2026): early engagement w/c 26 Oct; requests issued W1 Nov; 6-week collection to 15 Dec;
 # first review W3 Dec; targeted follow-up W3–W4 Dec; consolidated master W4 Dec.

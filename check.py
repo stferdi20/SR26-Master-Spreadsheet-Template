@@ -107,7 +107,7 @@ for r in range(7, rs.max_row + 1):
 check(set(codes) == {q["ref"] for q in qual}, "RASCI lists every Sustainability 2030 indicator")
 for code, rows in req_rows.items():
     if code in B.PILOT_FACULTIES:
-        cols = [h for h in hdr.values() if h.split(" – ")[0] == code]
+        cols = [rasci.FACULTIES_LABEL(B.PILOT_FACULTIES)]
     else:
         cols = [rasci.area_label(l) for c in B.CENTRAL if c[0] == code for l, _ in c[3]]
         check(all(c in hdr.values() for c in cols), f"RASCI has a column for every {code} section")
