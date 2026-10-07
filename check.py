@@ -147,17 +147,20 @@ for n, code in enumerate(B.LINKED_UNITS, start=1):
     bad = 0; n_links = 0
     for r in range(1, ws.max_row + 1):
         v = ws.cell(r, 12).value
-        if isinstance(v, str) and v.startswith(f"=IF('[{n}]"):
+        if isinstance(v, str) and f"'[{n}]1. Reporting template'!$L$1:$L$400" in v:
             n_links += 1
-            src = int(re.search(r"!L(\d+)", v).group(1))
-            bad += rq.cell(src, 2).value != ws.cell(r, 2).value
-    check(n_links == len(req_rows[code]) and bad == 0, f"{code}: {n_links} linked rows, all pointing at the same ref in the request file")
+            bad += f"MATCH($B{r},'[{n}]1. Reporting template'!$B$1:$B$400,0)" not in v  # looks up its own ref
+    check(n_links == len(req_rows[code]) and bad == 0, f"{code}: {n_links} linked rows, each looking up its own indicator ref in the request file")
     tmpl = load_workbook(next(f for f in req_files if f.endswith(B.request_name(code))))
     check(tmpl["1. Reporting template"].protection.sheet and tmpl["2. OPTIONAL highlighted stories"].protection.sheet,
           f"{code}: request layout protected")
 check(z.read("xl/workbook.xml").decode().count("<externalReference ") == len(B.LINKED_UNITS), "workbook declares each external link once")
 allf = " ".join(f for n in z.namelist() if n.startswith("xl/worksheets/") for f in re.findall(r"<f>([^<]*)</f>", z.read(n).decode()))
 check(not re.search(r"\[\d+\]'", allf), "external references use Excel syntax '[n]Sheet'!A1 (bracket inside the quotes)")
+sto = M["Highlighted stories"]
+for n, code in enumerate(B.LINKED_UNITS, start=1):
+    k = sum(1 for row in sto.iter_rows() for x in row if isinstance(x.value, str) and f"'[{n}]2. OPTIONAL highlighted stories'" in x.value)
+    check(k == 15, f"{code}: 3 story slots x 5 fields linked by story number ({k})")
 for n, code in enumerate(B.LINKED_UNITS, start=1):
     ext = z.read(f"xl/externalLinks/externalLink{n}.xml").decode()
     names = re.findall(r'sheetName val="([^"]+)"', ext)

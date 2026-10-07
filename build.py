@@ -27,7 +27,7 @@ SRC = ROOT / "source"
 OUT = ROOT / "output"
 
 # ---------------------------------------------------------------- settings
-VERSION = "v0.17"  # bump on every revision; appears in file names and Read me
+VERSION = "v0.18"  # bump on every revision; appears in file names and Read me
 VERSION_HISTORY = [
     ("v0.1", "First draft: requirements matrix, pilot faculty and central-unit requests, tracker, evidence register."),
     ("v0.2", "SR25-style faculty wording and 'How SST will use'; scoring/T1/T2 formulas; Legal & Risk; project tabs; linked SR25 responses tab."),
@@ -46,6 +46,7 @@ VERSION_HISTORY = [
     ("v0.15", "Fix workbook links: external reference written in Excel's syntax ('[1]Sheet'!A1, not [1]'Sheet'!A1); link lists the request file's actual sheet names."),
     ("v0.16", "Master unit tabs: SR25 columns I–K group now shows its [+] button (outline level declared as in SR25; collapsed flag on column H)."),
     ("v0.17", "Excel-online formatting pass on every tab: row 1 header and version removed; header rows frozen only (no frozen columns clipping titles); row heights sized to wrapped text; taller title row."),
+    ("v0.18", "Workbook links look up each indicator ref (and story number) in the request file instead of fixed rows, so they survive row changes; all four pilot faculties linked (ABP, Arts, FBE, Science)."),
 ]
 # Team timeline (Oct 2026): early engagement w/c 26 Oct; requests issued W1 Nov; 6-week collection to 15 Dec;
 # first review W3 Dec; targeted follow-up W3–W4 Dec; consolidated master W4 Dec.
@@ -290,7 +291,7 @@ for _code, _name, _sr25, _secs in CENTRAL:
 
 
 # Request workbooks linked into the master (same Teams folder; relative workbook links). Add codes as files are uploaded.
-LINKED_UNITS = ["ABP"]
+LINKED_UNITS = ["ABP", "ARTS", "FBE", "SCI"]
 REQ_SHEETS = {}  # code -> sheet names of the request workbook (for the external link part)
 REQ_ROWS = {}  # code -> {"refs": {ref: row on tab 1}, "stories": [rows on tab 2]} – filled by request_workbook
 
@@ -606,8 +607,11 @@ def stories_master(wb):
 
 
 def link_cells(wb, reg):
-    """Point the master's answer cells (and story slots) at each linked request workbook: [n] = n-th external link."""
+    """Point the master's answer cells (and story slots) at each linked request workbook ([n] = n-th external link).
+    Each cell looks up its indicator ref in column B of the request (and story number in column A of Tab 2), so the
+    links survive rows being inserted or removed in the request file."""
     tmpl, stor = "1. Reporting template", "2. OPTIONAL highlighted stories"
+    green = PatternFill("solid", fgColor="E2EFDA")
     for n, code in enumerate(LINKED_UNITS, start=1):
         rows = REQ_ROWS[code]
         for key, sheet, r0, r1 in reg:
@@ -615,20 +619,24 @@ def link_cells(wb, reg):
                 continue
             ws = wb[sheet]
             for r in range(r0, r1 + 1):
-                src = rows["refs"].get(ws.cell(r, 2).value)
-                if not src:
+                if ws.cell(r, 2).value not in rows["refs"]:
                     continue
                 for c in range(12, 18):
-                    a = f"'[{n}]{tmpl}'!{get_column_letter(c)}{src}"  # Excel syntax: '[n]Sheet name'!A1
-                    ws.cell(r, c).value = f'=IF({a}="","",{a})'
-                    ws.cell(r, c).fill = PatternFill("solid", fgColor="E2EFDA")
+                    col = get_column_letter(c)
+                    a = (f"INDEX('[{n}]{tmpl}'!${col}$1:${col}$400,"
+                         f"MATCH($B{r},'[{n}]{tmpl}'!$B$1:$B$400,0))")  # Excel syntax: '[n]Sheet name'!A1
+                    ws.cell(r, c).value = f'=IFERROR(IF({a}="","",{a}),"")'
+                    ws.cell(r, c).fill = green
         st = wb["Highlighted stories"]
         first = next(r for r in range(6, st.max_row + 1) if str(st.cell(r, 2).value or "").startswith(code + " "))
-        for k, src in enumerate(rows["stories"]):
+        for k in range(3):
+            r = first + k
             for i in range(len(STORY_COLS)):
-                a = f"'[{n}]{stor}'!{get_column_letter(2 + i)}{src}"
-                st.cell(first + k, 4 + i).value = f'=IF({a}="","",{a})'
-                st.cell(first + k, 4 + i).fill = PatternFill("solid", fgColor="E2EFDA")
+                col = get_column_letter(2 + i)
+                a = (f"INDEX('[{n}]{stor}'!${col}$1:${col}$60,"
+                     f"MATCH($C{r},'[{n}]{stor}'!$A$1:$A$60,0))")  # story number 1–3 in column A
+                st.cell(r, 4 + i).value = f'=IFERROR(IF({a}="","",{a}),"")'
+                st.cell(r, 4 + i).fill = green
 
 
 def patch_outline(path):
