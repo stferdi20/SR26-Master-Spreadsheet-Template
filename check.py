@@ -86,7 +86,7 @@ for code, rows in req_rows.items():
     check(not miss, f"requirements matrix 'issued to' names {tag} for all its requests" + (f" – missing {miss}" if miss else ""))
 
 # ---- scoring tabs use the same unit list
-a1 = M["A1. Data scoring"]
+a1 = M["A1. Response summary"]
 a1_units = [a1.cell(10, c).value for c in range(8, a1.max_column + 1)]
 a1_units = a1_units[:a1_units.index(None)] if None in a1_units else a1_units
 t2 = M["T2. Single target review"]
@@ -162,7 +162,8 @@ check(f"DRAFT {V}" in alltext, f"Read me shows {V}")
 # old timeline must not survive anywhere (all workbooks)
 for f in [master_path] + req_files + glob.glob(f"output/SR26 project management - {V}.xlsx"):
     txt = " ".join(str(c.value) for ws in load_workbook(f) for row in ws.iter_rows() for c in row if isinstance(c.value, str))
-    for phrase in ["15 January 2027", "4 December 2026", "4 Dec (TBC)", "15 Jan (TBC)", "Support meetings: January"]:
+    for phrase in ["15 January 2027", "4 December 2026", "4 Dec (TBC)", "15 Jan (TBC)", "Support meetings: January",
+                   "Confirm end-2026 target status", "Target status assessment and definitions", "Target score"]:
         check(phrase not in txt, f"{f.split('/')[-1][:30]}: no old date '{phrase}'")
 
 # ---- report (de-duplicated)

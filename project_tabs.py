@@ -127,7 +127,7 @@ def project_tabs(wb):
         ("Drafting & data validation (Jan 2027)", None),
         ("Commence drafting from consolidated master", "", D(2027, 1, 4), D(2027, 2, 5), "SST", "", "", "", "High"),
         ("Confirm final quantitative figures (Databook)", "", D(2027, 1, 4), D(2027, 1, 29), "SST", "", "Data owners", "", "High"),
-        ("Preliminary target status assessment (internal) – A1/T2 tabs", "", D(2027, 1, 18), D(2027, 2, 5), "Rose (TBC)", "Director, Sustainability", "SST", "", "High"),
+        ("Review responses by indicator (A1 / T1 / T2) – no target status rating in 2026", "", D(2027, 1, 18), D(2027, 2, 5), "Rose (TBC)", "Director, Sustainability", "SST", "", "High"),
         ("Full draft + issues paper; close evidence gaps", "", D(2027, 1, 11), D(2027, 2, 5), "SST", "Director, Sustainability", "", "", "High"),
         ("Review & governance (Feb–May 2027)", None),
         ("VCAG papers due (Review Group findings)", "10 Feb", D(2027, 2, 10), D(2027, 2, 10), "SST", "Director, Sustainability", "", "", "Milestone"),

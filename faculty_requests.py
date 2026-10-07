@@ -78,8 +78,7 @@ def faculty_request(row, sr25_ref, prev_status, prev_response, original, tailor=
     parts = []
     if sr25_ref:
         if prev_response:
-            st = f" and rated it '{prev_status}'" if prev_status else ""
-            parts.append(f"In end-2025 reporting {who} reported on the related SP2030 target {sr25_ref}{st} "
+            parts.append(f"In end-2025 reporting {who} reported on the related SP2030 target {sr25_ref} "
                          f"({where}). Please build on this rather than repeating it, focusing on what is new in 2026.")
         else:
             parts.append(f"We did not receive an end-2025 response for the related SP2030 target {sr25_ref}, "
