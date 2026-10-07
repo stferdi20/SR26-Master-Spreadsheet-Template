@@ -27,7 +27,7 @@ SRC = ROOT / "source"
 OUT = ROOT / "output"
 
 # ---------------------------------------------------------------- settings
-VERSION = "v0.19"  # bump on every revision; appears in file names and Read me
+VERSION = "v0.20"  # bump on every revision; appears in file names and Read me
 VERSION_HISTORY = [
     ("v0.1", "First draft: requirements matrix, pilot faculty and central-unit requests, tracker, evidence register."),
     ("v0.2", "SR25-style faculty wording and 'How SST will use'; scoring/T1/T2 formulas; Legal & Risk; project tabs; linked SR25 responses tab."),
@@ -48,6 +48,7 @@ VERSION_HISTORY = [
     ("v0.17", "Excel-online formatting pass on every tab: row 1 header and version removed; header rows frozen only (no frozen columns clipping titles); row heights sized to wrapped text; taller title row."),
     ("v0.18", "Workbook links look up each indicator ref (and story number) in the request file instead of fixed rows, so they survive row changes; all four pilot faculties linked (ABP, Arts, FBE, Science)."),
     ("v0.19", "All 15 request workbooks linked (4 faculties + 11 central units): answers into each unit tab, stories into the compiled tab."),
+    ("v0.20", "Request files for CI&S and L&R named with '&' (CI&S / L&R - SR26 sustainability reporting request.xlsx); master links updated."),
 ]
 # Team timeline (Oct 2026): early engagement w/c 26 Oct; requests issued W1 Nov; 6-week collection to 15 Dec;
 # first review W3 Dec; targeted follow-up W3–W4 Dec; consolidated master W4 Dec.
@@ -308,7 +309,7 @@ def request_name(code):
 
 def file_code(code):
     """File-name-safe unit code."""
-    return {"CI&S": "CIandS", "L&R": "LandR", "AC&M": "ACM"}.get(code, code)
+    return {"AC&M": "ACM"}.get(code, code)  # CI&S and L&R keep their "&" (team preference)
 
 
 # SR25 master tab/section holding each unit's end-2025 responses (None = no SR25 equivalent)
