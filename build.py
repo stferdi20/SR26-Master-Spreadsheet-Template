@@ -27,7 +27,7 @@ SRC = ROOT / "source"
 OUT = ROOT / "output"
 
 # ---------------------------------------------------------------- settings
-VERSION = "v0.27"  # bump on every revision; appears in file names and Read me
+VERSION = "v0.28"  # bump on every revision; appears in file names and Read me
 VERSION_HISTORY = [
     ("v0.1", "First draft: requirements matrix, pilot faculty and central-unit requests, tracker, evidence register."),
     ("v0.2", "SR25-style faculty wording and 'How SST will use'; scoring/T1/T2 formulas; Legal & Risk; project tabs; linked SR25 responses tab."),
@@ -56,6 +56,7 @@ VERSION_HISTORY = [
     ("v0.25", "Project workbook: P2 split into P2.1 Governance deadlines, P2.2 Timeline (Gantt, governance labels above the weeks) and P2.3 RASCI matrix (SR25 layout, task × team, counts); P2.2/P2.3 freeze activity columns and header rows; all three linked."),
     ("v0.26", "Rose feedback (MRE/CI&S/CFOG/AC&M): 'Data owner confirms' and 'Confirmed by' columns removed everywhere (Column O now notes the contact person); 'faculty' / 'portfolio' / 'the University' wording per unit; 'sustainability outcomes' in EN1(c); CLLAP spelled out; MRE asked every research indicator in three consolidated rows (TR1–TR3, parts a–d) incl. SciVal/Altmetric output and MRE + University-wide progress for TR3; AC&M asked about the University and alumni (EE1(d)); CL2(a) removed from AC&M and TR3(b) from CFOG; CI&S end-2025 notes and CL1(c) GHG Inventory request updated; master Column F now pulls request wording from the request files."),
     ("v0.27", "MRE: one row per research indicator (TR1(a)–TR3(d), 12 rows, in order) instead of three consolidated rows, keeping Rose's TR2(c) SciVal/Altmetric and TR3 MRE + University-wide wording; NB2(a)/MBI removed from MRE (skipped for now)."),
+    ("v0.28", "Request wording now flows master → request files: the master's Column F holds the wording (edit it there) and each request file's Column F looks it up from the master (workbook link to the master in the same folder); answers and stories still flow request files → master."),
     ("v0.24", "P2: 'Start paper' renamed 'Begin drafting (proposed)'."),
 ]
 # Team timeline (Oct 2026): early engagement w/c 26 Oct; requests issued W1 Nov; collection to 24 Dec (Christmas shutdown, Rose);
@@ -352,6 +353,12 @@ for _code, _name, _sr25, _secs in CENTRAL:
 STORY_ROWS = {}  # unit code -> first story-slot row on the master's Highlighted stories tab
 REQ_SHEETS = {}  # code -> sheet names of the request workbook (for the external link part)
 REQ_ROWS = {}  # code -> {"refs": {ref: row on tab 1}, "stories": [rows on tab 2]} – filled by request_workbook
+MASTER_ROWS = {}  # code -> {"sheet": master unit tab, "r0", "r1": row span, "wording": {(row, col): text}} – filled by master
+MASTER_SHEETS = []  # the master's sheet names, in order (for the request files' external link part)
+
+
+def master_name():
+    return f"SR26 end-year reporting master spreadsheet - {VERSION}.xlsx"
 
 
 def linked_units():
@@ -713,7 +720,7 @@ def link_cells(wb, reg):
             for r in range(r0, r1 + 1):
                 if ws.cell(r, 2).value not in rows["refs"]:
                     continue
-                for c in [6] + list(range(12, 16)):  # F: request wording, so edits made in the request file show here
+                for c in range(12, 16):  # Column F (wording) flows the other way: request files look it up in the master
                     col = get_column_letter(c)
                     a = (f"INDEX('[{n}]{tmpl}'!${col}$1:${col}$400,"
                          f"MATCH($B{r},'[{n}]{tmpl}'!$B$1:$B$400,0))")  # Excel syntax: '[n]Sheet name'!A1
@@ -747,18 +754,27 @@ def patch_outline(path):
             z.writestr(n, files[n])
 
 
-def add_external_links(path, codes):
-    """Inject Excel external-link parts (relative to the master's folder) for each linked request workbook."""
+def add_external_links(path, links):
+    """Inject Excel external-link parts for each linked workbook: links = [(file name in the same folder, its sheet
+    names in order, cached values {sheet name: {(row, col): value}})]. The cache is what Excel shows until the link
+    is refreshed, so linked cells are never blank on first open."""
     import zipfile
     from urllib.parse import quote
+    from xml.sax.saxutils import escape
     src = zipfile.ZipFile(path)
     files = {n: src.read(n) for n in src.namelist()}
     src.close()
     refs, rels, ctypes = [], [], []
-    for n, code in enumerate(codes, start=1):
-        sheets = REQ_SHEETS[code]  # the linked file's actual sheet names, in order
-        names = "".join(f'<sheetName val="{s}"/>' for s in sheets)
-        data = "".join(f'<sheetData sheetId="{i}"/>' for i in range(len(sheets)))
+    for n, (target, sheets, cache) in enumerate(links, start=1):
+        names = "".join(f'<sheetName val="{escape(s, {chr(34): "&quot;"})}"/>' for s in sheets)
+        data = ""
+        for i, s in enumerate(sheets):
+            rows = {}
+            for (r, c), v in (cache.get(s) or {}).items():
+                rows.setdefault(r, []).append((c, v))
+            xml = "".join(f'<row r="{r}">' + "".join(f'<cell r="{get_column_letter(c)}{r}" t="str"><v>{escape(str(v))}</v></cell>'
+                                                     for c, v in sorted(cs)) + "</row>" for r, cs in sorted(rows.items()))
+            data += f'<sheetData sheetId="{i}"' + (f'>{xml}</sheetData>' if xml else "/>")
         files[f"xl/externalLinks/externalLink{n}.xml"] = (
             '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
             '<externalLink xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
@@ -768,7 +784,7 @@ def add_external_links(path, codes):
             '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
             '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
             '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/externalLinkPath" '
-            f'Target="{quote(request_name(code))}" TargetMode="External"/></Relationships>').encode()
+            f'Target="{quote(target)}" TargetMode="External"/></Relationships>').encode()
         refs.append(f'<externalReference r:id="rIdExt{n}"/>')
         rels.append(f'<Relationship Id="rIdExt{n}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/externalLink" '
                     f'Target="externalLinks/externalLink{n}.xml"/>')
@@ -843,6 +859,12 @@ def request_workbook(code, name, sections, sr25, ref_map=None, sr25_sections=Non
             if ws.cell(r, 2).value:
                 refs[ws.cell(r, 2).value] = r
     REQ_ROWS[code] = {"refs": refs, "stories": [10, 11, 12]}
+    link = MASTER_ROWS.get(code)  # second pass: wording looked up in the master's unit tab (edit wording there)
+    if link:
+        q, a0, a1 = f"'[1]{link['sheet']}'!", link["r0"], link["r1"]
+        for ref, r in refs.items():
+            a = f"INDEX({q}$F${a0}:$F${a1},MATCH($B{r},{q}$B${a0}:$B${a1},0))"
+            ws.cell(r, 6).value = f'=IFERROR(IF({a}="","",{a}),"")'
     REQ_SHEETS[code] = None  # set after tab order is final
     protect(ws, [(r, c) for r in refs.values() for c in range(12, 16)])
     # no frozen panes: a frozen column clips the title and section names in column B
@@ -863,6 +885,8 @@ def request_workbook(code, name, sections, sr25, ref_map=None, sr25_sections=Non
     wb.properties.version = VERSION
     finalize(wb)
     wb.save(path)
+    if link:
+        add_external_links(path, [(master_name(), MASTER_SHEETS, {link["sheet"]: link["wording"]})])
     return path.name
 
 
@@ -1029,6 +1053,14 @@ def master(qual, quan, fac_rows, central_sections, sr25_all):
     # Highlighted stories – compiled from every request's Tab 2, with SST assessment columns
     stories_master(wb)
     link_cells(wb, reg)  # after the stories tab exists
+    for key, sheet, r0, r1 in reg:  # where each unit's wording sits, for the request files' Column F lookups
+        code = key if sheet == "Faculties" else sheet
+        m = MASTER_ROWS.setdefault(code, {"sheet": sheet, "r0": r0, "r1": r1, "wording": {}})
+        m["r0"], m["r1"] = min(m["r0"], r0), max(m["r1"], r1)
+        for r in range(r0, r1 + 1):
+            if ref := wb[sheet].cell(r, 2).value:
+                m["wording"][(r, 2)] = ref
+                m["wording"][(r, 6)] = wb[sheet].cell(r, 6).value or ""
 
     # Evidence register – kept simple: one line per material claim or figure used in the report
     ws = wb.create_sheet("Evidence register")
@@ -1065,7 +1097,7 @@ def master(qual, quan, fac_rows, central_sections, sr25_all):
         ("CL2(a) removed from AC&M (Rose) – no unit is now asked CL2(a) in 2026.", "AC&M", "Stefanus", "Decide later: other owner or leave unreported", "Open"),
         ("TR3(b) removed from CFOG (Rose).", "CFOG", "Stefanus", "None – MRE covers TR3 University-wide", "Closed"),
         ("'Data owner confirms' (Yes/No) and 'Confirmed by' columns removed from all requests (Rose). Comms to ask that responses are returned once reviewed and confirmed by the most senior person in the faculty/portfolio; Column O records the contact closest to the data.", "All", "Stefanus", "Add to request comms", "Open"),
-        ("After handover, wording edits are made in the request files themselves (Review → Unprotect Sheet; no password) – the master's Column F pulls the wording from each request file. Fill in 'Reporting request TBC' cells the same way before issue.", "All", "Rose", "Fill TBC requests before issue", "Open"),
+        ("After handover, wording edits are made in the master's Column F – each request file's Column F pulls the wording from the master (keep the master in the same folder). Fill in 'Reporting request TBC' cells the same way before issue.", "All", "Rose", "Fill TBC requests before issue", "Open"),
         ("Due date moved to 24 Dec 2026 (Christmas shutdown) as the Sustainability 2030 launch was pushed back (Rose). First review, follow-up and consolidation move to January 2027. Databook figures given by 24 Dec are provisional; final figures confirmed Jan–Feb.", "All", "Stefanus", "Confirm exact issue date and SST contact email", "Open"),
         ("EE1(b) (student self-efficacy) removed from all faculty requests (Rose feedback on ABP, extended to all faculties). No unit is now asked EE1(b) in 2026.", "Faculties", "Stefanus", "Confirm whether to collect centrally (e.g. Sustainability Strengths Compass project) or leave unreported for 2026", "Open"),
         ("Faculty requests cut to 8 questions (SR25 sent 10) after the ABP walkthrough and Rose feedback (EE1(b) removed); all 9 faculties receive the same set.", "Faculties", "Stefanus", "Monitor burden during collection", "Closed"),
@@ -1084,11 +1116,12 @@ def master(qual, quan, fac_rows, central_sections, sr25_all):
 
     wb.move_sheet("Lists", offset=len(wb.sheetnames))
     OUT.mkdir(exist_ok=True)
-    p = OUT / f"SR26 end-year reporting master spreadsheet - {VERSION}.xlsx"
+    p = OUT / master_name()
     wb.properties.version = VERSION
     finalize(wb)
     wb.save(p)
-    add_external_links(p, linked_units())
+    MASTER_SHEETS[:] = wb.sheetnames
+    add_external_links(p, [(request_name(c), REQ_SHEETS[c], {}) for c in linked_units()])
     patch_outline(p)
     return p.name
 
@@ -1344,19 +1377,23 @@ def main():
     fac_rows = [r for r in qual if asks_faculties(r)]
     central_sections = {code: [(label, [r for r in qual if m(r)]) for label, m in secs] for code, _, _, secs in CENTRAL}
     print("Qual indicators:", len(qual), "| faculty rows:", len(fac_rows), "| quant rows:", len(quan))
-    for code, name in PILOT_FACULTIES.items():
-        s25 = sr25_for(code)
-        print(" ", request_workbook(code, name, [(f"{code} – {name}", fac_for(code, fac_rows))], prev_lookup(s25),
-                                    sr25_sections=s25, qual_by_row=by_row), sum(len(x[1]) for x in s25), "SR25 rows")
-    for code, name, _, _ in CENTRAL:
-        secs = [(l, rows) for l, rows in central_sections[code] if rows]
-        s25 = sr25_for(code)
-        print(" ", request_workbook(code, name, secs, prev_lookup(s25) if s25 else None, ref_map=CENTRAL_SR25_MAP[code],
-                                    sr25_sections=s25, qual_by_row=by_row, folder="central_unit_requests"),
-              [len(r) for _, r in secs], sum(len(x[1]) for x in s25), "SR25 rows")
+    def requests(say=print):
+        for code, name in PILOT_FACULTIES.items():
+            s25 = sr25_for(code)
+            say(" ", request_workbook(code, name, [(f"{code} – {name}", fac_for(code, fac_rows))], prev_lookup(s25),
+                                      sr25_sections=s25, qual_by_row=by_row), sum(len(x[1]) for x in s25), "SR25 rows")
+        for code, name, _, _ in CENTRAL:
+            secs = [(l, rows) for l, rows in central_sections[code] if rows]
+            s25 = sr25_for(code)
+            say(" ", request_workbook(code, name, secs, prev_lookup(s25) if s25 else None, ref_map=CENTRAL_SR25_MAP[code],
+                                      sr25_sections=s25, qual_by_row=by_row, folder="central_unit_requests"),
+                [len(r) for _, r in secs], sum(len(x[1]) for x in s25), "SR25 rows")
+
+    requests()  # first pass: the master needs each request file's rows and sheet names
     purged = quant.quant_only_rows(qual)
     print("  quant-only rows removed from requirements matrix:", [r["ref"] for r in qual if r["row"] in purged])
     print(" ", master([r for r in qual if r["row"] not in purged], quan, fac_rows, central_sections, sr25))
+    requests(say=lambda *a: None)  # second pass: request files' Column F now looks up the wording in the master
     pwb = Workbook()
     lists_sheet(pwb)
     project_tabs(pwb)

@@ -217,3 +217,16 @@ print(f"{len(set(notes))} checks passed, {len(set(fails))} failed")
 for f in dict.fromkeys(fails):
     print(f)
 sys.exit(1 if fails else 0)
+
+# ---- request wording flows master -> request files (v0.28): master Column F is plain text, request Column F looks it up
+for code in B.linked_units():
+    f = next(f for f in req_files if f.endswith(B.request_name(code)))
+    rq = load_workbook(f)["1. Reporting template"]
+    ws = M["Faculties"] if code in B.PILOT_FACULTIES else M[code]
+    rows = [r for r in range(1, rq.max_row + 1) if isinstance(rq.cell(r, 6).value, str) and "'[1]" in rq.cell(r, 6).value]
+    check(len(rows) == len(req_rows[code]) and all(f"MATCH($B{r}," in rq.cell(r, 6).value for r in rows),
+          f"{code}: request Column F looks up its wording in the master ({len(rows)} rows)")
+    rel = zipfile.ZipFile(f).read("xl/externalLinks/_rels/externalLink1.xml.rels").decode()
+    check(quote(B.master_name()) in rel, f"{code}: request file links to {B.master_name()}")
+    check(not any(isinstance(c.value, str) and c.value.startswith("=") for row in ws.iter_rows(min_col=6, max_col=6) for c in row),
+          f"{code}: master Column F holds the wording as text")
