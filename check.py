@@ -47,13 +47,20 @@ UNCODE = {B.file_code(u): u for u in units}
 
 # ---- request workbooks: rows, tabs, links
 req_rows = {}
+ALLREFS = [q["ref"] for q in qual]
+
+
+def expand(rows):  # MRE consolidated rows 'TR1(a)–(d)' stand for every TR1 indicator
+    return [x for r in rows for x in ([a for a in ALLREFS if a.startswith(r[:3])] if "–" in r else [r])]
+
+
 for f in req_files:
     code = UNCODE.get(f.split("/")[-1].split(" - ")[0], f.split("/")[-1].split(" - ")[0])
     wb = load_workbook(f)
     t = wb["1. Reporting template"]
     rows = [t.cell(r, 2).value for r in range(1, t.max_row + 1) if re.match(r"^[A-Z]{2}\d\(", str(t.cell(r, 2).value or ""))]
     req_rows[code] = rows
-    check(set(rows) <= ref_ok, f"{code}: all {len(rows)} requested refs exist in the requirements matrix")
+    check(set(expand(rows)) <= set(ALLREFS), f"{code}: all {len(rows)} requested refs are S2030 indicators")
     check(wb.sheetnames[:3] == ["1. Reporting template", "2. OPTIONAL highlighted stories", "3. SR25 responses"],
           f"{code}: tab order 1-2-3")
     owned = quant.owned_points(B.DATABOOK, code) if code not in B.PILOT_FACULTIES else []
@@ -86,7 +93,7 @@ issued = {rm.cell(r, 2).value: str(rm.cell(r, 9).value) for r in range(6, rm.max
 check(set(issued) == ref_ok, f"requirements matrix holds exactly the {len(ref_ok)} non-quant-only indicators")
 for code, rows in req_rows.items():
     tag = "Faculties" if code in B.PILOT_FACULTIES else code
-    miss = [r for r in rows if tag not in issued.get(r, "")]
+    miss = [r for r in expand(rows) if tag not in issued.get(r, "") and r in issued]
     check(not miss, f"requirements matrix 'issued to' names {tag} for all its requests" + (f" – missing {miss}" if miss else ""))
 
 # ---- scoring tabs use the same unit list
@@ -120,6 +127,7 @@ for code, rows in req_rows.items():
     have = {ref for ref, d in codes.items() if any(d.get(c) in ("R", "A and R") for c in cols)}
     if code in B.PILOT_FACULTIES:  # merged Faculties column: per-faculty skips (FACULTY_SKIP) still show R
         have -= {q["ref"] for q in qual if q["row"] in B.FACULTY_SKIP.get(code, ())}
+    rows = expand(rows)
     check(set(rows) == have, f"RASCI 'R' for {code} matches its request rows" +
           ("" if set(rows) == have else f" – request only {sorted(set(rows) - have)}, RASCI only {sorted(have - set(rows))}"))
 

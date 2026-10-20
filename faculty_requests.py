@@ -65,6 +65,7 @@ TAILORED = {
 
 # Central-unit wording overrides (otherwise the S2030 Qual-sheet wording is used)
 CENTRAL_WORDING = {
+    26: "Please provide the 2026 Greenhouse Gas Inventory.",  # CL1(c) – CI&S (Rose, v0.26)
     11: "Can you list any notable alumni working in sustainability? (Name, course and graduating year, a short summary and a link "
         "to a profile if available; please note whether consent to be featured is likely.)",
     53: "Please comment on sustainability-related living labs in your area – their activities, outputs, outcomes and impact.",
@@ -107,7 +108,7 @@ USE = {
     21: "We will report on ways the University is making research practices more sustainable in the 2026 Sustainability Report, and share practical examples (e.g. green labs) across faculties.",
     22: "We will use any survey or capability data to describe changes in sustainability-related research culture. Where no evidence exists, this helps us plan University-wide measurement (e.g. staff and graduate researcher surveys) from 2027.",
     23: "We will use faculty self-assessments to identify strengths, gaps and priority actions in embedding sustainable research practices, to inform internal management reporting and the Transformational research working group.",
-    26: "For internal planning: we will record the status of the planned review of Climate Leadership targets (due by 2030).",
+    26: "We will use the 2026 Greenhouse Gas Inventory in the Climate leadership section of the 2026 Sustainability Report, and record the status of the planned review of Climate Leadership targets (due by 2030).",
     27: "We will use these examples to show how the University communicates climate research and learning to external audiences, and as an input to the institutional decarbonisation research and education mapping due by 2028.",
     29: "We will report on the University's ongoing climate communications in the Climate leadership section of the 2026 Sustainability Report, alongside contributions from Melbourne Climate Futures and the Melbourne Energy Institute.",
     30: "We will report the University's climate-change resilience maturity rating, key gaps and priority actions in the 2026 Sustainability Report (building on the Climate Change Preparedness Framework assessment reported in 2025).",

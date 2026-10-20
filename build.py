@@ -27,7 +27,7 @@ SRC = ROOT / "source"
 OUT = ROOT / "output"
 
 # ---------------------------------------------------------------- settings
-VERSION = "v0.25"  # bump on every revision; appears in file names and Read me
+VERSION = "v0.26"  # bump on every revision; appears in file names and Read me
 VERSION_HISTORY = [
     ("v0.1", "First draft: requirements matrix, pilot faculty and central-unit requests, tracker, evidence register."),
     ("v0.2", "SR25-style faculty wording and 'How SST will use'; scoring/T1/T2 formulas; Legal & Risk; project tabs; linked SR25 responses tab."),
@@ -54,6 +54,7 @@ VERSION_HISTORY = [
     ("v0.23", "Rose feedback: due 24 Dec 2026 (Christmas shutdown); end-2025 pointer moved to the end of each request and 'build on this' sentence removed; EE1(a) notes the 23 Nov joint ADs session, Melbourne Plus/Wattle note removed; EE1(b) dropped for ABP only; new CLLAP wording; MRE spelled out; P2 Gantt rebuilt with governance paper deadlines (SR25 placeholders, -3 days leader review); University of Melbourne navy banner and logo on all tabs."),
     ("v0.24", "EE1(b) removed from all faculty requests (8 faculty questions); P2 'Start paper' renamed 'Begin drafting (proposed)'."),
     ("v0.25", "Project workbook: P2 split into P2.1 Governance deadlines, P2.2 Timeline (Gantt, governance labels above the weeks) and P2.3 RASCI matrix (SR25 layout, task × team, counts); P2.2/P2.3 freeze activity columns and header rows; all three linked."),
+    ("v0.26", "Rose feedback (MRE/CI&S/CFOG/AC&M): 'Data owner confirms' and 'Confirmed by' columns removed everywhere (Column O now notes the contact person); 'faculty' / 'portfolio' / 'the University' wording per unit; 'sustainability outcomes' in EN1(c); CLLAP spelled out; MRE asked every research indicator in three consolidated rows (TR1–TR3, parts a–d) incl. SciVal/Altmetric output and MRE + University-wide progress for TR3; AC&M asked about the University and alumni (EE1(d)); CL2(a) removed from AC&M and TR3(b) from CFOG; CI&S end-2025 notes and CL1(c) GHG Inventory request updated; master Column F now pulls request wording from the request files."),
     ("v0.24", "P2: 'Start paper' renamed 'Begin drafting (proposed)'."),
 ]
 # Team timeline (Oct 2026): early engagement w/c 26 Oct; requests issued W1 Nov; collection to 24 Dec (Christmas shutdown, Rose);
@@ -85,7 +86,7 @@ CENTRAL = [
     ("CI&S", "Commercial, Infrastructure & Sustainability (CI&S)",
      "Corporate Development (CD Development & Estate Planning teams; CD Sustainability Strategy)",
      [("CI&S – Estate Planning & Development (TBC: confirm with Gerard)", lambda r: "CI&S" in r["stake"] and _is_estate(r)),
-      ("CI&S – Sustainability Strategy (incl. CLLAP)", lambda r: "CI&S" in r["stake"] and not _is_estate(r))]),
+      ("CI&S – Sustainability Strategy (incl. Campus Living Lab Accelerator Program)", lambda r: "CI&S" in r["stake"] and not _is_estate(r))]),
     ("CFOG", "Chief Finance Officer Group (CFOG)",
      "CFOG (Procurement; Accounting; Treasury & Investments; Enterprise Portfolio & Investments)",
      [("CFOG – Procurement", lambda r: r["row"] == 46 or "CFOG" in r["stake"] and r["pa"] in {"Responsible procurement", "Modern slavery and human rights", "Nature and biodiversity", "Transformational research", "Enablers"}),
@@ -98,7 +99,8 @@ CENTRAL = [
      [("CIOG – Responsible AI & digital", lambda r: "CIOG" in r["stake"])]),
     ("MRE", "Melbourne Research and Enterprise (MRE)",
      "Chancellery Research and Enterprise",
-     [("MRE – Research (incl. MBI for NB2(a) nature footprint)", lambda r: "MRE" in r["stake"] or "MBI" in r["stake"])]),
+     [("MRE – Melbourne Research and Enterprise (incl. Melbourne Biodiversity Institute for NB2(a))",
+       lambda r: r["pa"] == "Transformational research" or "MRE" in r["stake"] or "MBI" in r["stake"])]),
     # Chancellery units – each reported separately (SR25 Chancellery tab sections), named as the team uses them
     ("AC&M", "Advancement, Communication and Marketing (AC&M)", "Chancellery – Advancement, Communications & Marketing",
      [("AC&M – Advancement, Communication and Marketing", lambda r: r["row"] in (16, 54))]),
@@ -177,6 +179,11 @@ def finalize(wb):
     import math
     from openpyxl.utils import column_index_from_string
     for ws in wb.worksheets:
+        if ws.title == "4. Quantitative data":  # Databook wording: spell out CLLAP (Rose)
+            for row in ws.iter_rows():
+                for c in row:
+                    if isinstance(c.value, str) and "CLLAP" in c.value and not c.value.startswith("="):
+                        c.value = adapt(c.value, None)
         if ws.sheet_state == "visible" and ws["B2"].value and ws["B2"].font.color is not None and ws["B2"].font.color.rgb == "00FFFFFF":
             banner(ws)
         fp = ws.freeze_panes
@@ -300,11 +307,14 @@ def read_quan(qual_by_row):
 
 
 # Indicators asked of one unit only (team review, ABP walkthrough): Qual row -> unit code
-EXCLUSIVE = {11: "SaSS",                      # EE1(d) alumni
+EXCLUSIVE = {11: ("SaSS", "AC&M"),           # EE1(d) alumni (AC&M added – Rose, v0.26)
              27: "AC&M", 29: "AC&M",          # CL2(a), CL2(c) climate communications / mapping
              13: "MRE", 14: "MRE", 15: "MRE",  # TR1(b), (c), (d) academic–professional collaboration mechanisms
              20: "MRE", 22: "MRE", 23: "MRE"}  # TR3(a), (c), (d) research systems, culture, assessment
 FACULTY_REMOVED = {55, 9}  # EN1(d) governance – not asked of faculties (central units keep it); EE1(b) dropped for all faculties (v0.24)
+UNIT_REMOVED = {"CFOG": {21},   # TR3(b) – Rose, v0.26
+                "AC&M": {27}}   # CL2(a) – Rose, v0.26 (now asked of no unit; see Issues log)
+UNIVERSITY_WIDE = {"AC&M", "MRE"}  # remit across the University – wording says 'the University'
 FACULTY_SKIP = {}  # per-faculty exclusions, e.g. {"ABP": {row}}
 FACULTY_MERGED = {10: 8}  # EE1(c) is covered by the faculty EE1(a) question
 
@@ -327,7 +337,11 @@ def merged_note(ref_by_row):
 
 def _exclusive(m, code, is_first):
     """Exclusive rows go to their owner's first section only; other rows use the section's own matcher."""
-    return lambda r: (EXCLUSIVE[r["row"]] == code and is_first) if r["row"] in EXCLUSIVE else m(r)
+    def owners(row):
+        o = EXCLUSIVE[row]
+        return (o,) if isinstance(o, str) else o
+    return lambda r: (r["row"] not in UNIT_REMOVED.get(code, ())) and (
+        (code in owners(r["row"]) and is_first) if r["row"] in EXCLUSIVE else m(r))
 
 
 for _code, _name, _sr25, _secs in CENTRAL:
@@ -370,7 +384,7 @@ SR25_SOURCES = {
 }
 # Central units: S2030 Qual row -> closest SR25 (SP2030) ref answered by that unit
 CENTRAL_SR25_MAP = {
-    "CI&S": {30: "8a(i)", 53: "2a", 12: "5a(ii)", 51: "12b(i)", 49: "11c(ii)", 40: "7b"},
+    "CI&S": {30: "8a(i)", 53: "2a", 12: "5a(ii)"},  # EI1(a), MS1(a), RI1(b) refs dropped (Rose, v0.26)
     "CFOG": {49: "11c(i)", 46: "11c(iii)", 51: "12b(i)", 47: "11d", 48: "11d"},
     "ESG": {32: "9a(ii)", 33: "9a(i)", 34: "9b(i)", 54: "7a", 53: "2a"},
     "CIOG": {},
@@ -442,6 +456,32 @@ def read_sr25_faculty():
     return res
 
 
+PREV_NOTE = {("CI&S", 30): "2025 response provided separately by Manager, Sustainability Strategy."}
+
+
+def adapt(text, code):
+    """Unit-specific wording: 'faculty' for faculties, 'portfolio' elsewhere, 'the University' for University-wide units."""
+    if not text:
+        return text
+    t = text
+    if code in UNIVERSITY_WIDE:
+        for a, z in (("within your Faculty/Portfolio", "across the University"), ("involving your Faculty/Portfolio", "involving the University"),
+                     ("from your Faculty/Portfolio", "from across the University"), ("by your Faculty/Portfolio", "across the University"),
+                     ("your Faculty/Portfolio", "the University"), ("Faculty/Portfolio’s assessment", "An assessment"),
+                     ("Faculty/Portfolio's assessment", "An assessment"), ("from the faculty", "from across the University"),
+                     ("from your Faculty", "from across the University")):
+            t = t.replace(a, z)
+        t = t.replace("from across the University across", "from across the University in")
+    word = "faculty" if code in PILOT_FACULTIES else "portfolio"
+    t = (t.replace("Faculty/Portfolio’s", f"Your {word}’s").replace("Faculty/Portfolio's", f"Your {word}'s")
+          .replace("Faculty/Portfolio", word).replace("faculty/portfolio", word))
+    t = t.replace("Sustainability 2030 outcomes", "sustainability outcomes").replace("Sustainability 2030 outcome", "sustainability outcome")
+    t = (t.replace("Sustainability Strengths Compass Living Lab project (CLLAP)", "Sustainability Strengths Compass project")
+          .replace("Campus Living Lab Accelerator Program (CLLAP)", "Campus Living Lab Accelerator Program")
+          .replace("CLLAP", "Campus Living Lab Accelerator Program"))
+    return t
+
+
 def use_text(r):
     if r["row"] in USE:
         return USE[r["row"]]
@@ -458,19 +498,17 @@ COLS = ["Ref", "Priority area", "Sustainability 2030 target", "Indicator", "2026
         "Related SR25 ref", "End-2025 confirmed status", "End-2025 reporting response", "Links and supporting information",
         "OPTION 1:  Target-level reporting (Column D)",
         "OPTION 2:  Indicator level reporting (Column E/F)", "Supporting information/comments",
-        "Data source and limitations", "Data owner confirms information is accurate", "Confirmed by (name, role, date)"]
+        "Data source, limitations and contact person"]
 # No target status rating is requested in 2026 (team decision, Rose) – responses are commentary and evidence only
 SUBS = {12: "A general update on activities in relation to the overarching target (Column D)",
         13: "Data and commentary in direct response to the reporting request (Column F)",
         14: "Any additional information (e.g. links, images, documents)",
-        15: "Where did this information come from (system, report, survey, person)? Note any gaps or limitations.",
-        16: "Select 'Yes' to confirm the information provided is accurate and can be used for reporting",
-        17: "Name, role and date of the person confirming"}
+        15: "Where did this information come from (system, report, survey)? Note any gaps or limitations, and the person closest to the data we can follow up with."}
 WIDTHS = {"A": 4, "B": 10, "C": 16, "D": 38, "E": 38, "F": 50, "G": 34, "H": 18, "I": 16, "J": 50, "K": 24,
-          "L": 48, "M": 48, "N": 30, "O": 30, "P": 20, "Q": 24}
+          "L": 48, "M": 48, "N": 30, "O": 36}
 
 
-def block(ws, top, unit_label, rows, sr25, lists, reg=None, key=None, ref_map=None, tailor=None, anchors=None, quant_refs=()):
+def block(ws, top, unit_label, rows, sr25, lists, reg=None, key=None, ref_map=None, tailor=None, anchors=None, quant_refs=(), code=None):
     """Write a reporting block at row `top`. Returns next free row.
 
     sr25: {SR25 ref: (status, response, links)} or None (no SR25 equivalent). ref_map: Qual row -> SR25 ref
@@ -483,7 +521,7 @@ def block(ws, top, unit_label, rows, sr25, lists, reg=None, key=None, ref_map=No
     for rng, text, fill, fnt in [
         ((3, 7), "Sustainability 2030 target and indicator", HDR, Font(name="Aptos Narrow", size=14, bold=True, color="FFFFFF")),
         ((8, 8), "SR25 response", HDR, Font(name="Aptos Narrow", size=14, bold=True, color="FFFFFF")),
-        ((12, 17), "End-2026 reporting (PLEASE COMPLETE THIS SECTION)", GOLD, Font(name="Aptos Narrow", size=14, bold=True, color=DARK))]:
+        ((12, 15), "End-2026 reporting (PLEASE COMPLETE THIS SECTION)", GOLD, Font(name="Aptos Narrow", size=14, bold=True, color=DARK))]:
         if rng[1] > rng[0]:  # no merge across hidden columns (I–K) – the text would be squashed into H
             ws.merge_cells(start_row=h1, start_column=rng[0], end_row=h1, end_column=rng[1])
         cell = ws.cell(h1, rng[0], text); cell.fill, cell.font, cell.alignment = fill, fnt, CWRAP
@@ -509,10 +547,13 @@ def block(ws, top, unit_label, rows, sr25, lists, reg=None, key=None, ref_map=No
         if sr25 is not None:
             request = faculty_request(r["row"], sref, prev[0], prev[1], request, tailor=tailor,
                                       linked=bool(anchors and sref in anchors))
+        if (code, r["row"]) in PREV_NOTE:
+            request = request.split("\n\nWe did not receive")[0].split("\n\nIn end-2025")[0] + "\n\n" + PREV_NOTE[(code, r["row"])]
+        request = adapt(request, code)
         if r["ref"] in quant_refs:
             request += "\n\nQuantitative figures for this indicator are requested separately in Tab 4 (Quantitative data)."
         href = sref if sref else ("N/A – new indicator" if sr25 is not None else "")
-        vals = [r["ref"], r["pa"], r["target"], r["indicator"], request, use_text(r), href, prev[0], prev[1], prev[2]]
+        vals = [r["ref"], r["pa"], r["target"], r["indicator"], request, adapt(r.get("use") or use_text(r), code), href, prev[0], prev[1], prev[2]]
         for i, v in enumerate(vals):
             cell = ws.cell(rr, 2 + i, v)
             body(cell, REFF if i < 4 else None, bold=(i == 0))
@@ -521,14 +562,12 @@ def block(ws, top, unit_label, rows, sr25, lists, reg=None, key=None, ref_map=No
             h.hyperlink = Hyperlink(ref=h.coordinate, location=f"'{SR25_SHEET}'!B{anchors[sref]}")
             h.value = f"{sref}\n→ view SR25 response"
             h.font = Font(name="Aptos Narrow", size=11, bold=True, color="0563C1", underline="single")
-        for col in range(12, 18):
+        for col in range(12, 16):
             body(ws.cell(rr, col))
         ws.row_dimensions[rr].height = 150
     last = r0 + len(rows) - 1
     if reg is not None:
         reg.append((key or unit_label, ws.title, r0, last + 1))  # +1 blank row: keeps single-row blocks a true range
-    if rows:
-        dv_list(ws, lists["confirm"], f"P{r0}:P{last}")
     return last + 3
 
 
@@ -562,7 +601,7 @@ def instructions(ws, unit_name):
     ws.merge_cells("D4:G8")
     ws["D4"] = ("• For each row below, describe progress towards the target (Column L) and/or respond to the 2026 reporting request (Column M)\n"
                 "• Provide supporting information if required (Column N), including links to documents or images\n"
-                "• Note the source of your information and any limitations (Column O), then confirm the information is accurate (Columns P–Q)\n"
+                "• Note the source of your information, any limitations and the person closest to the data (Column O)\n• Please return the spreadsheet once it has been reviewed and confirmed by your area's senior lead\n"
                 "• Where a related end-2025 target existed, click the ref in Column H to see your full SR25 response (Tab 3)\n"
                 "• Use Tab 2 of this spreadsheet to highlight key sustainability stories (optional)\n"
                 f"• 2026 is a transition year: Sustainability 2030 launched ~20 October 2026, so report on activity across all of 2026 "
@@ -671,7 +710,7 @@ def link_cells(wb, reg):
             for r in range(r0, r1 + 1):
                 if ws.cell(r, 2).value not in rows["refs"]:
                     continue
-                for c in range(12, 18):
+                for c in [6] + list(range(12, 16)):  # F: request wording, so edits made in the request file show here
                     col = get_column_letter(c)
                     a = (f"INDEX('[{n}]{tmpl}'!${col}$1:${col}$400,"
                          f"MATCH($B{r},'[{n}]{tmpl}'!$B$1:$B$400,0))")  # Excel syntax: '[n]Sheet name'!A1
@@ -794,7 +833,7 @@ def request_workbook(code, name, sections, sr25, ref_map=None, sr25_sections=Non
     setup_block_sheet(ws, outline=False); instructions(ws, name)
     top, rreg = 11, []
     for label, rows in sections:
-        top = block(ws, top, label, rows, sr25, lists, ref_map=ref_map, anchors=anchors, quant_refs=quant_refs, reg=rreg, key=label)
+        top = block(ws, top, label, rows, sr25, lists, ref_map=ref_map, anchors=anchors, quant_refs=quant_refs, reg=rreg, key=label, code=code)
     refs = {}
     for _, _, r0, r1 in rreg:
         for r in range(r0, r1 + 1):
@@ -802,7 +841,7 @@ def request_workbook(code, name, sections, sr25, ref_map=None, sr25_sections=Non
                 refs[ws.cell(r, 2).value] = r
     REQ_ROWS[code] = {"refs": refs, "stories": [10, 11, 12]}
     REQ_SHEETS[code] = None  # set after tab order is final
-    protect(ws, [(r, c) for r in refs.values() for c in range(12, 18)])
+    protect(ws, [(r, c) for r in refs.values() for c in range(12, 16)])
     # no frozen panes: a frozen column clips the title and section names in column B
     st = wb.create_sheet("2. OPTIONAL highlighted stories", 1)
     stories_sheet(st, unit=code)
@@ -845,7 +884,7 @@ def master(qual, quan, fac_rows, central_sections, sr25_all):
                  "4. Request tracker – sent/chased/received/confirmed status and response rate\n"
                  "Faculties / CI&S / CFOG / ESG / CIOG / MRE / L&R – consolidated responses (copy in from returned request workbooks; same layout)\n"
                  "Highlighted stories – consolidated optional stories and case-study shortlist\n"
-                 "A1. Response summary – auto-pulls every unit's responses per indicator; counts units asked, responses received and owner-confirmed\n"
+                 "A1. Response summary – auto-pulls every unit's responses per indicator; counts units asked, responses received and awaiting response\n"
                  "T1. Manual target review – every indicator with responses from the units asked, side by side, plus reviewer notes\n"
                  "T2. Single target review – pick an indicator and see all units' responses and the scored status\n"
                  "Request wording log – original S2030 wording vs tailored faculty request wording\n"
@@ -917,7 +956,7 @@ def master(qual, quan, fac_rows, central_sections, sr25_all):
     ws = wb.create_sheet("4. Request tracker")
     title(ws, "SR26 sustainability reporting", "4. Request tracker")
     cols = ["#", "Group", "Unit / section", "Key contact", "No. of indicators requested", "Request workbook", "Date sent",
-            "Due date", "Reminder date", "Optional 1:1 meeting (date)", "Rows answered (auto)", "Owner confirmed rows (auto)",
+            "Due date", "Reminder date", "Optional 1:1 meeting (date)", "Rows answered (auto)",
             "Status", "Days overdue", "Notes / follow-up"]
     hdr_row(ws, 9, cols)
     track = [(f"F{i+1}", "Faculty", f"{code} – {name}", len(fac_for(code, fac_rows)), request_name(code), code)
@@ -929,7 +968,7 @@ def master(qual, quan, fac_rows, central_sections, sr25_all):
             track.append((f"C{n}", "Central", label, len(rows), request_name(code), label.split(" (")[0]))
     for k, t in enumerate(track):
         rr = 10 + k
-        vals = [t[0], t[1], t[2], "TBC", t[3], t[4], None, DUE_DT, f"=IF(I{rr}=\"\",\"\",I{rr}-7)", "", None, "", "Not sent",
+        vals = [t[0], t[1], t[2], "TBC", t[3], t[4], None, DUE_DT, f"=IF(I{rr}=\"\",\"\",I{rr}-7)", "", None, "Not sent",
                 f"=IF(OR(I{rr}=\"\",L{rr}>=F{rr}),\"\",MAX(0,TODAY()-I{rr}))", ""]
         for i, v in enumerate(vals):
             body(ws.cell(rr, 2 + i, v))
@@ -937,21 +976,20 @@ def master(qual, quan, fac_rows, central_sections, sr25_all):
         for col in (8, 9, 10, 11):
             ws.cell(rr, col).number_format = "dd/mm/yyyy"
     last = 9 + len(track)
-    dv_list(ws, f"=Lists!$D$2:$D${1 + len(TRACK_STATUS)}", f"N10:N{last}")
+    dv_list(ws, f"=Lists!$D$2:$D${1 + len(TRACK_STATUS)}", f"M10:M{last}")
     TRACK_ROWS.update({t[5]: 10 + k for k, t in enumerate(track)})
     tracker_ws = ws
     # summary
     ws["B4"] = "Summary"; ws["B4"].font = Font(name="Aptos", bold=True, size=14, color=NAVY)
     for i, s in enumerate(TRACK_STATUS):
         ws.cell(5 + i // 4 * 2, 3 + (i % 4) * 2, s).font = Font(name="Aptos", bold=True)
-        ws.cell(6 + i // 4 * 2, 3 + (i % 4) * 2, f'=COUNTIF($N$10:$N${last},"{s}")')
+        ws.cell(6 + i // 4 * 2, 3 + (i % 4) * 2, f'=COUNTIF($M$10:$M${last},"{s}")')
     ws["L5"] = "Response rate"; ws["L5"].font = Font(name="Aptos", bold=True)
-    ws["L6"] = f'=IFERROR((COUNTIF($N$10:$N${last},"Received")+COUNTIF($N$10:$N${last},"First review")+COUNTIF($N$10:$N${last},"Follow-up")+COUNTIF($N$10:$N${last},"Complete"))/(COUNTA($N$10:$N${last})-COUNTIF($N$10:$N${last},"Not required")),0)'
+    ws["L6"] = f'=IFERROR((COUNTIF($M$10:$M${last},"Received")+COUNTIF($M$10:$M${last},"First review")+COUNTIF($M$10:$M${last},"Follow-up")+COUNTIF($M$10:$M${last},"Complete"))/(COUNTA($M$10:$M${last})-COUNTIF($M$10:$M${last},"Not required")),0)'
     ws["L6"].number_format = "0%"
-    ws["N5"] = "Owner confirmed"; ws["N5"].font = Font(name="Aptos", bold=True)
-    ws["N5"].value = "Rows owner-confirmed"
-    ws["N6"] = f'=SUM($M$10:$M${last})&" / "&SUM($F$10:$F${last})'
-    widths(ws, dict(zip("ABCDEFGHIJKLMNOP", [4, 6, 10, 46, 16, 12, 44, 12, 12, 12, 16, 14, 12, 16, 10, 40])))
+    ws["N5"] = "Rows answered"; ws["N5"].font = Font(name="Aptos", bold=True)
+    ws["N6"] = f'=SUM($L$10:$L${last})&" / "&SUM($F$10:$F${last})'
+    widths(ws, dict(zip("ABCDEFGHIJKLMNOP", [4, 6, 10, 46, 16, 12, 44, 12, 12, 12, 16, 14, 16, 10, 40])))
     ws.freeze_panes = "E10"
 
     # Unit tabs (consolidated responses)
@@ -965,7 +1003,8 @@ def master(qual, quan, fac_rows, central_sections, sr25_all):
         ws["B3"].font = Font(name="Aptos", italic=True)
         top = 5
         for idx, (key, label, rows, sr, rmap) in enumerate(sections):
-            top = block(ws, top, f"1.{idx + 1}  {label}", rows, sr, LISTS, reg, key, ref_map=rmap)
+            top = block(ws, top, f"1.{idx + 1}  {label}", rows, sr, LISTS, reg, key, ref_map=rmap,
+                        code=key if tab == "Faculties" else tab)
         return ws
 
     global LISTS
@@ -982,7 +1021,6 @@ def master(qual, quan, fac_rows, central_sections, sr25_all):
             q = f"'{sheet}'!"
             # a row counts as answered when Option 1 or Option 2 has text
             tracker_ws.cell(tr, 12, f'=SUMPRODUCT(--((LEN({q}$L${r0}:$L${r1})+LEN({q}$M${r0}:$M${r1}))>0))')
-            tracker_ws.cell(tr, 13, f'=COUNTIF({q}$P${r0}:$P${r1},"Yes")')
     wording_log(wb, fac_rows)
 
     # Highlighted stories – compiled from every request's Tab 2, with SST assessment columns
@@ -1020,6 +1058,10 @@ def master(qual, quan, fac_rows, central_sections, sr25_all):
         ("TR2(b) 'Documented progress of strategic initiatives, incl. Impact Accelerators' reuses the TR2(d) case-study wording and has no stakeholder in the Qual sheet – left as-is.", "TR2(b)", "TBC", "Review wording/owner", "Open"),
         ("Quantitative-only rows (no stakeholder in the Qual sheet) removed from the requirements matrix and moved to '2. Quant coverage'; Databook gaps requested in Tab 4 of the owning central unit's request.", "TR2(b); CL1(a)-(b); CL2(b); NB1(a); CE1-2; RP2; RI1(a)", "Stefanus", "Confirm owners and Databook coverage with Chris", "Open"),
         ("No target status rating requested in 2026 (Rose): rating column removed from all requests; A1 now summarises responses instead of scoring.", "All", "Director, Sustainability", "Revisit for 2027 with the new traffic-light framework", "Closed"),
+        ("CL2(a) removed from AC&M (Rose) – no unit is now asked CL2(a) in 2026.", "AC&M", "Stefanus", "Decide later: other owner or leave unreported", "Open"),
+        ("TR3(b) removed from CFOG (Rose).", "CFOG", "Stefanus", "None – MRE covers TR3 University-wide", "Closed"),
+        ("'Data owner confirms' (Yes/No) and 'Confirmed by' columns removed from all requests (Rose). Comms to ask that responses are returned once reviewed and confirmed by the most senior person in the faculty/portfolio; Column O records the contact closest to the data.", "All", "Stefanus", "Add to request comms", "Open"),
+        ("After handover, wording edits are made in the request files themselves (Review → Unprotect Sheet; no password) – the master's Column F pulls the wording from each request file. Fill in 'Reporting request TBC' cells the same way before issue.", "All", "Rose", "Fill TBC requests before issue", "Open"),
         ("Due date moved to 24 Dec 2026 (Christmas shutdown) as the Sustainability 2030 launch was pushed back (Rose). First review, follow-up and consolidation move to January 2027. Databook figures given by 24 Dec are provisional; final figures confirmed Jan–Feb.", "All", "Stefanus", "Confirm exact issue date and SST contact email", "Open"),
         ("EE1(b) (student self-efficacy) removed from all faculty requests (Rose feedback on ABP, extended to all faculties). No unit is now asked EE1(b) in 2026.", "Faculties", "Stefanus", "Confirm whether to collect centrally (e.g. Sustainability Strengths Compass project) or leave unreported for 2026", "Open"),
         ("Faculty requests cut to 8 questions (SR25 sent 10) after the ABP walkthrough and Rose feedback (EE1(b) removed); all 9 faculties receive the same set.", "Faculties", "Stefanus", "Monitor burden during collection", "Closed"),
@@ -1049,7 +1091,7 @@ def master(qual, quan, fac_rows, central_sections, sr25_all):
 
 # ---------------------------------------------------------------- scoring engine (adapted from SR25 A1 / 0.5 / T2 tabs)
 FIELDS = [("OPTION 1:  Target-level reporting", "L"), ("OPTION 2:  Indicator level reporting", "M"),
-          ("Supporting information/comments", "N"), ("Data source and limitations", "O"), ("Data owner confirms", "P")]
+          ("Supporting information/comments", "N"), ("Data source, limitations and contact", "O")]
 AUTOFILL = "Cell will autofill based on response"
 
 
@@ -1067,7 +1109,7 @@ def scoring_tabs(wb, qual, reg):
     ws["C4"] = "Description"; ws["C4"].font = Font(name="Aptos", bold=True)
     ws["D4"] = ("Pulls every unit's end-2026 response for each indicator from the Faculties and central-unit tabs (do not type in "
                 "the grey cells). 'N/A' = not requested from that unit. No target status rating is collected in 2026, so the summary "
-                "columns count responses: units asked, responses received (Option 1 or 2 answered), awaiting response and owner-confirmed.")
+                "columns count responses: units asked, responses received (Option 1 or 2 answered), and awaiting response.")
     ws["D4"].alignment = WRAP; ws.merge_cells("D4:N6")
     groups = ["Faculty" if k in PILOT_FACULTIES else "Central" for k, *_ in units]
     head = ["Ref.", "Priority area", "Indicator", "Reporting requirement", "Target code", "Target progress"]
@@ -1076,7 +1118,7 @@ def scoring_tabs(wb, qual, reg):
     for i, (k, *_r) in enumerate(units):
         ws.cell(9, 8 + i, groups[i]); ws.cell(10, 8 + i, k)
     sc0 = 8 + n_u + 1
-    score_cols = ["Units asked", "Responses received", "Awaiting response", "Owner confirmed"]
+    score_cols = ["Units asked", "Responses received", "Awaiting response"]
     for i, h in enumerate(score_cols):
         ws.cell(10, sc0 + i, h)
     hdr_row(ws, 10, [ws.cell(10, c).value for c in range(2, sc0 + len(score_cols))])
@@ -1095,18 +1137,18 @@ def scoring_tabs(wb, qual, reg):
             for i, (k, sheet, r0, last) in enumerate(units):
                 rng = f"'{sheet}'!${col}${r0}:${col}${last}"
                 key = f"'{sheet}'!$B${r0}:$B${last}"
-                f = (f'=IFERROR(IF(INDEX({rng},MATCH($F{r},{key},0))="","{AUTOFILL}",'
-                     f'INDEX({rng},MATCH($F{r},{key},0))),"N/A")')
+                mt = f'IFERROR(MATCH($F{r},{key},0),MATCH(LEFT($F{r},3)&"*–*",{key},0))'  # MRE: consolidated TRn(a)–(d) rows
+                f = (f'=IFERROR(IF(INDEX({rng},{mt})="","{AUTOFILL}",'
+                     f'INDEX({rng},{mt})),"N/A")')
                 c = ws.cell(r, 8 + i, f); body(c, GREY)
                 c.alignment = Alignment(wrap_text=False, vertical="top")
             if fi == 0:
                 status_rows[q["ref"]] = r
-                o1, o2, ok = (f"$H{r + k}:${lastu}{r + k}" for k in (0, 1, 4))
+                o1, o2 = (f"$H{r + k}:${lastu}{r + k}" for k in (0, 1))
                 got = lambda rg: f'(({rg}<>"N/A")*({rg}<>"{AUTOFILL}"))'
                 fs = {"Units asked": f'=SUMPRODUCT(--({o1}<>"N/A"))',
                       "Responses received": f"=SUMPRODUCT(--(({got(o1)}+{got(o2)})>0))",
-                      "Awaiting response": f'={C["Units asked"]}{r}-{C["Responses received"]}{r}',
-                      "Owner confirmed": f'=COUNTIF({ok},"Yes")'}
+                      "Awaiting response": f'={C["Units asked"]}{r}-{C["Responses received"]}{r}'}
                 for h, f in fs.items():
                     body(ws.cell(r, sc0 + score_cols.index(h), f), PatternFill("solid", fgColor="E2EFDA"))
             r += 1
@@ -1134,12 +1176,13 @@ def scoring_tabs(wb, qual, reg):
         for rr in range(r0, last + 1):
             v = wb[sheet].cell(rr, 2).value
             if v:
-                asked.setdefault(v, []).append(i)
+                for ref in ([q["ref"] for q in qual if q["ref"].startswith(v[:3])] if "–" in str(v) else [v]):
+                    asked.setdefault(ref, []).append(i)
     maxu = max((len(v) for v in asked.values()), default=1)
     ucol = lambda j: get_column_letter(5 + j)
     sc = [get_column_letter(5 + maxu + i) for i in range(3)]
     hdr_row(t1, 7, ["Ref.", "Indicator", "Target progress"] + [f"Unit {j + 1}" for j in range(maxu)] +
-            ["Responses received", "Owner confirmed", "Reviewer notes"])
+            ["Responses received", "Awaiting response", "Reviewer notes"])
     r = 8
     for q in qual:
         idx = asked.get(q["ref"], [])
@@ -1151,7 +1194,7 @@ def scoring_tabs(wb, qual, reg):
         body(t1.cell(r, 4, "Unit"), GREY2, bold=True)
         for j, ui in enumerate(idx):
             body(t1.cell(r, 5 + j, units[ui][0]), GREY2, bold=True)
-        for col, h in zip(sc[:2], ["Responses received", "Owner confirmed"]):
+        for col, h in zip(sc[:2], ["Responses received", "Awaiting response"]):
             c = t1[f"{col}{r}"]; c.value = f"='A1. Response summary'!{C[h]}{a1}"; body(c, PatternFill("solid", fgColor="E2EFDA"), bold=True)
         body(t1[f"{sc[2]}{r}"])
         t1[f"{sc[2]}{r}"].value = MERGED.get(q["ref"])
@@ -1190,7 +1233,7 @@ def scoring_tabs(wb, qual, reg):
         c.alignment = WRAP; c.border = BOX
         t2.row_dimensions[5 + i].height = 45
     srow = 11
-    for i, h in enumerate(["Units asked", "Responses received", "Awaiting response", "Owner confirmed"]):
+    for i, h in enumerate(["Units asked", "Responses received", "Awaiting response"]):
         a = t2.cell(srow, 2 + i * 2, h); a.font = Font(name="Aptos", bold=True); a.alignment = WRAP
         c = t2.cell(srow + 1, 2 + i * 2, f"=IFERROR(INDEX('A1. Response summary'!${C[h]}$11:${C[h]}${last_a1},"
                                          f"MATCH($C$4&\"|\"&\"{FIELDS[0][0]}\",'A1. Response summary'!$A$11:$A${last_a1},0)),\"\")")
@@ -1241,6 +1284,48 @@ def wording_log(wb, fac_rows):
 from project_tabs import project_tabs  # noqa: E402
 
 
+MRE_INTRO = {
+    "TR1": "Melbourne Research and Enterprise (MRE) prepared the research targets, so we are asking about every indicator under this "
+           "target, University-wide. Please respond to each part (a)–(d):",
+    "TR2": "Please respond to each part (a)–(d), University-wide:",
+    "TR3": "MRE is responsible for this target at a University-wide level. For each part (a)–(d), please describe progress within MRE "
+           "and progress across the University:",
+}
+MRE_PART = {18: "Please prepare the SciVal and Altmetric output on sustainability-related research (e.g. SDG-mapped publications), "
+                "as previously prepared by Shane Wood. Quantitative figures are requested in Tab 4 (Quantitative data)."}
+
+
+def consolidate_mre(rows):
+    """MRE: one row per research target with parts (a)–(d) listed (Rose, v0.26); other indicators stay as they are."""
+    out, groups = [], {}
+    for r in rows:
+        g = r["ref"][:3] if r["pa"] == "Transformational research" else None
+        if g:
+            if g not in groups:
+                groups[g] = []; out.append(g)
+            groups[g].append(r)
+        else:
+            out.append(r)
+    res = []
+    for x in out:
+        if not isinstance(x, str):
+            res.append(x); continue
+        parts = groups[x]
+        letters = [p["ref"][3:] for p in parts]
+        ref = f"{x}{letters[0]}–{letters[-1]}" if len(parts) > 1 else parts[0]["ref"]
+        lines = [MRE_INTRO.get(x, "")]
+        for p in parts:
+            ask = MRE_PART.get(p["row"]) or adapt(p["request"] or "(Reporting request TBC)", "MRE")
+            if x == "TR3":
+                ask = ask.replace("across the University", "within MRE and across the University")
+            lines.append(f"{p['ref'][3:]} {p['indicator']}\n→ {ask}")
+        first = parts[0]
+        res.append(dict(first, ref=ref, row=1000 + int(x[2]), indicator="\n".join(f"{p['ref'][3:]} {p['indicator']}" for p in parts),
+                        request="\n\n".join(l for l in lines if l), parts=[p["ref"] for p in parts],
+                        use=" ".join(dict.fromkeys(use_text(p) for p in parts))[:900]))
+    return res
+
+
 def main():
     import shutil
     shutil.rmtree(OUT, ignore_errors=True)  # old versions removed; previous versions stay in git history
@@ -1254,6 +1339,7 @@ def main():
     sr25 = read_sr25_faculty()
     fac_rows = [r for r in qual if asks_faculties(r)]
     central_sections = {code: [(label, [r for r in qual if m(r)]) for label, m in secs] for code, _, _, secs in CENTRAL}
+    central_sections["MRE"] = [(l, consolidate_mre(rows)) for l, rows in central_sections["MRE"]]
     print("Qual indicators:", len(qual), "| faculty rows:", len(fac_rows), "| quant rows:", len(quan))
     for code, name in PILOT_FACULTIES.items():
         s25 = sr25_for(code)
