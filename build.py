@@ -27,8 +27,8 @@ SRC = ROOT / "source"
 OUT = ROOT / "output"
 
 # ---------------------------------------------------------------- settings
-VERSION = "v0.28"  # bump on every revision; appears in file names and Read me
-VERSION_HISTORY = [
+VERSION = "v0.29"  # chat/commit log only – never written into the workbooks or their file names
+VERSION_HISTORY = [  # change log for our own reference (not written into the workbooks)
     ("v0.1", "First draft: requirements matrix, pilot faculty and central-unit requests, tracker, evidence register."),
     ("v0.2", "SR25-style faculty wording and 'How SST will use'; scoring/T1/T2 formulas; Legal & Risk; project tabs; linked SR25 responses tab."),
     ("v0.3", "Quantitative indicators separated: removed from requirements matrix; '2. Quant coverage' and '2b. Databook register' against the Databook draft; '4. Quantitative data' tab in central-unit requests."),
@@ -57,6 +57,7 @@ VERSION_HISTORY = [
     ("v0.26", "Rose feedback (MRE/CI&S/CFOG/AC&M): 'Data owner confirms' and 'Confirmed by' columns removed everywhere (Column O now notes the contact person); 'faculty' / 'portfolio' / 'the University' wording per unit; 'sustainability outcomes' in EN1(c); CLLAP spelled out; MRE asked every research indicator in three consolidated rows (TR1–TR3, parts a–d) incl. SciVal/Altmetric output and MRE + University-wide progress for TR3; AC&M asked about the University and alumni (EE1(d)); CL2(a) removed from AC&M and TR3(b) from CFOG; CI&S end-2025 notes and CL1(c) GHG Inventory request updated; master Column F now pulls request wording from the request files."),
     ("v0.27", "MRE: one row per research indicator (TR1(a)–TR3(d), 12 rows, in order) instead of three consolidated rows, keeping Rose's TR2(c) SciVal/Altmetric and TR3 MRE + University-wide wording; NB2(a)/MBI removed from MRE (skipped for now)."),
     ("v0.28", "Request wording now flows master → request files: the master's Column F holds the wording (edit it there) and each request file's Column F looks it up from the master (workbook link to the master in the same folder); answers and stories still flow request files → master."),
+    ("v0.29", "No version numbers in any file name or inside the workbooks (Read me status, version history, file properties, project overview, feedback log); the version is kept for the chat/commit log only."),
     ("v0.24", "P2: 'Start paper' renamed 'Begin drafting (proposed)'."),
 ]
 # Team timeline (Oct 2026): early engagement w/c 26 Oct; requests issued W1 Nov; collection to 24 Dec (Christmas shutdown, Rose);
@@ -358,7 +359,7 @@ MASTER_SHEETS = []  # the master's sheet names, in order (for the request files'
 
 
 def master_name():
-    return f"SR26 end-year reporting master spreadsheet - {VERSION}.xlsx"
+    return "SR26 end-year reporting master spreadsheet.xlsx"
 
 
 def linked_units():
@@ -882,7 +883,6 @@ def request_workbook(code, name, sections, sr25, ref_map=None, sr25_sections=Non
     safe = file_code(code)
     path = OUT / folder / request_name(code)
     path.parent.mkdir(parents=True, exist_ok=True)
-    wb.properties.version = VERSION
     finalize(wb)
     wb.save(path)
     if link:
@@ -900,7 +900,7 @@ def master(qual, quan, fac_rows, central_sections, sr25_all):
     title(ws, "SR26 data collection master spreadsheet", "2026 Sustainability Report – data collection master")
     readme = [
         ("Purpose", "Central record of SR26 data requirements, owners, reporting requests, responses and evidence. Adapted from the 2025 end-year reporting master spreadsheet (V0.2) and the Sustainability 2030 updated targets (Qual and Quan worksheets)."),
-        ("Status", f"DRAFT {VERSION} – {len(PILOT_FACULTIES)} faculties ({', '.join(PILOT_FACULTIES)}) and {len(CENTRAL)} central units ({', '.join(c[0] for c in CENTRAL)})."),
+        ("Status", f"DRAFT – {len(PILOT_FACULTIES)} faculties ({', '.join(PILOT_FACULTIES)}) and {len(CENTRAL)} central units ({', '.join(c[0] for c in CENTRAL)})."),
         ("Reporting approach", "Transition year: cover all of CY2026, distinguishing former Sustainability Plan 2030 activity from foundations and early actions after the Sustainability 2030 launch (~20 Oct 2026). Databook is the authoritative quantitative source. No target status rating (Met/Partially met/Not met) is requested in 2026 (team decision) – requests collect commentary and evidence only."),
         ("Key dates (TBC)", f"Early engagement (existing meetings): w/c 26 Oct 2026 | Requests issued: W1 Nov (from 2 Nov) | Collection period incl. optional 1:1 meetings: 2 Nov – 24 Dec (~7 weeks) | Responses and highlighted stories due: {DUE_DATE} | First review: w/c 4 Jan 2027 | Targeted follow-up: 4–15 Jan | Consolidated master: w/c 18 Jan | Governance paper deadlines: see P2.1 in the project workbook (placeholders – SR26 approach, SR25 for comparison)"),
         ("Tabs", "1. Requirements matrix – every S2030 qualitative indicator, owner and request\n"
@@ -920,7 +920,6 @@ def master(qual, quan, fac_rows, central_sections, sr25_all):
                  "Project management tabs (overview, plan, timeline, comms/web to-do, content checklist, page index) are in the separate 'SR26 project management' workbook"),
         ("Refs", "Refs are new SR26 codes: priority-area code + target number + indicator letter (e.g. EE1(a) = Exceptional education, target 1, indicator a). 'Related SR25 ref' links to the closest SP2030 (2025) target where one exists."),
         ("Regenerating", "Workbooks are generated by build.py in the repository. Edit the settings at the top (due dates, faculties, unit mapping) and re-run to produce request workbooks for additional faculties/units."),
-        ("Version history", "\n".join(f"{v}: {t}" for v, t in VERSION_HISTORY)),
         ("Request wording", "Faculty requests are rewritten in the SR25 style and point to each faculty's end-2025 response (see Request wording log). Central-unit requests use the S2030 'Qual' worksheet wording as-is."),
         ("Formulas", "Responses must be pasted into the Faculties/central-unit tabs keeping the same rows – A1, 0.5 and T2 look them up by Ref. Do not insert rows inside a block; add new units by re-running build.py."),
     ]
@@ -1117,7 +1116,6 @@ def master(qual, quan, fac_rows, central_sections, sr25_all):
     wb.move_sheet("Lists", offset=len(wb.sheetnames))
     OUT.mkdir(exist_ok=True)
     p = OUT / master_name()
-    wb.properties.version = VERSION
     finalize(wb)
     wb.save(p)
     MASTER_SHEETS[:] = wb.sheetnames
@@ -1401,8 +1399,8 @@ def main():
     pwb.move_sheet("Lists", offset=len(pwb.sheetnames))
     pwb.active = 0
     finalize(pwb)
-    pwb.save(OUT / f"SR26 project management - {VERSION}.xlsx")
-    print("  SR26 project management -", VERSION)
+    pwb.save(OUT / "SR26 project management.xlsx")
+    print("  SR26 project management.xlsx")
 
 
 if __name__ == "__main__":

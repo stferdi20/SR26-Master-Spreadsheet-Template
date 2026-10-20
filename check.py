@@ -22,21 +22,21 @@ def check(cond, msg):
     (notes if cond else fails).append(("OK  " if cond else "FAIL") + "  " + msg)
 
 
-V = B.VERSION
-master_path = f"output/SR26 end-year reporting master spreadsheet - {V}.xlsx"
+master_path = "output/" + B.master_name()
+PROJ = "output/SR26 project management.xlsx"
 M = load_workbook(master_path)
 req_files = sorted(glob.glob("output/*_requests/* - SR26 sustainability reporting request.xlsx"))
-stale = [f for f in glob.glob("output/*.xlsx") if not f.endswith(f"{V}.xlsx")]
+stale = [f for f in glob.glob("output/**/*.xlsx", recursive=True) if re.search(r"v\d+\.\d+", f)]
 stale += [f for f in glob.glob("output/*_requests/*.xlsx") if f not in req_files]
 for f in req_files:  # request files keep a stable name; the version is shown inside
     _w = load_workbook(f)
-    check(_w.properties.version == V, f"{f.split('/')[-1][:12]}: version {V} in file properties")
+    check(not _w.properties.version, f"{f.split('/')[-1][:12]}: no version in file properties")
     for _s in [x for x in _w.worksheets if x.sheet_state == "visible"]:  # layout rules for Excel online
         check(_s["A1"].value is None and _s["B1"].value is None, f"{f.split('/')[-1][:12]}/{_s.title}: row 1 empty")
         check(not _s.freeze_panes or _s.freeze_panes.startswith("A") or _s.title in ("P2.2 Timeline", "P2.3 RASCI matrix"), f"{f.split('/')[-1][:12]}/{_s.title}: no frozen columns")
-check(bool(glob.glob(f"output/SR26 project management - {V}.xlsx")), "separate project management workbook exists")
+check(bool(glob.glob(PROJ)), "separate project management workbook exists")
 check(not any(n.startswith("P") and n[1].isdigit() for n in M.sheetnames), "no project (P0–P5) tabs left in the master")
-check(not stale, f"master/project files carry {V}; request files use stable names ({len(req_files)} requests)")
+check(not stale, f"no version in any file name ({len(req_files)} requests)")
 
 qual = B.read_qual()
 B.DATABOOK = quant.read_databook(qual)
@@ -190,9 +190,9 @@ alltext = " ".join(str(c.value) for ws in M for row in ws.iter_rows() for c in r
 for phrase in ["no SR26 request issued", "6 central units", "V0.1", "Quant – Databook mapping", "Stakeholder map & RASCI",
                "P0 Project overview"]:
     check(phrase not in alltext, f"no stale text '{phrase}'")
-check(f"DRAFT {V}" in alltext, f"Read me shows {V}")
+check(not re.search(r"\bv\d+\.\d+", alltext), "no version number written in the master")
 # old timeline must not survive anywhere (all workbooks)
-for f in [master_path] + req_files + glob.glob(f"output/SR26 project management - {V}.xlsx"):
+for f in [master_path] + req_files + glob.glob(PROJ):
     txt = " ".join(str(c.value) for ws in load_workbook(f) for row in ws.iter_rows() for c in row if isinstance(c.value, str))
     for phrase in ["15 January 2027", "4 December 2026", "4 Dec (TBC)", "15 Jan (TBC)", "Support meetings: January",
                    "Confirm end-2026 target status", "Target status assessment and definitions", "Target score"]:

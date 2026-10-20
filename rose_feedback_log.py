@@ -2,8 +2,7 @@
 import build as B
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill
-V = B.VERSION
-M = f"Master ({V}), "
+M = "Master, "
 ABP = "ABP request, tab 1, "
 MRE = "MRE request, tab 1, "
 rows = [
@@ -96,7 +95,7 @@ rows = [
 ]
 wb = Workbook(); ws = wb.active; ws.title = "Rose feedback log"
 B.title(ws, "", "SR26 – Rose's feedback and responses")
-ws["B3"] = f"Rounds 1 and 2 of Rose's review, what was changed, and where to check it. Files: {V} master, request files (no version in name), SR26 project management {V}."
+ws["B3"] = f"Rounds 1 and 2 of Rose's review, what was changed, and where to check it. Files: master, request files, SR26 project management (no version in any file name)."
 ws["B3"].font = Font(name="Aptos", italic=True)
 cols = ["#", "Round", "File / area", "Rose's feedback", "Response – what we did", "Applies to", "Where to check", "Status"]
 B.hdr_row(ws, 5, cols)
@@ -113,5 +112,5 @@ B.widths(ws, {"A": 3, "B": 5, "C": 8, "D": 18, "E": 55, "F": 55, "G": 26, "H": 4
 ws.freeze_panes = "A6"
 ws.auto_filter.ref = f"B5:I{5 + len(rows)}"
 B.finalize(wb)
-out = str(B.OUT / f"SR26 Rose feedback log - {V}.xlsx")
+out = str(B.OUT / "SR26 Rose feedback log.xlsx")
 wb.save(out); print(out, len(rows))
