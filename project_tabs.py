@@ -6,7 +6,8 @@ Content is drawn from the 2026 Sustainability reporting approach (DRAFT Sep 2026
 """
 from datetime import date, timedelta
 
-from openpyxl.formatting.rule import CellIsRule
+from openpyxl.formatting.rule import CellIsRule, FormulaRule
+from openpyxl.worksheet.formula import ArrayFormula
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
@@ -41,7 +42,7 @@ def project_tabs(wb):
             ("Keep independent senior review", "Retain Target Status Review Group as the Sustainability Reporting Review Group (~15 Feb 2027)."),
             ("Strengthen data controls", "Central Evidence register, data owner confirmation (columns Q–R on every request), data source records, Databook alignment."),
             ("Integrate with Annual Report", "Engage Annual Report team in October; shared dependency map; late operational data (Feb–Mar) on a later pathway."),
-            ("Agree comms roles early", "RASCI with Strategic Communications, comms, digital and design at project start (P2)."),
+            ("Agree comms roles early", "RASCI with Strategic Communications, comms, digital and design at project start (P2.3 RASCI matrix)."),
             ("Plan web and close from the outset", "Year-specific report URL, central landing page, analytics measures agreed before launch, formal retrospective (P3, P2)."),
             ("Simpler project management", "This simplified tracker; induction walkthrough; direct messages for assigned tasks, group channel for shared updates; blocker escalation as a standing meeting item."),
             ("Follow up non-approval", "SR25: FBE filled in the template but did not approve; Science disagreed with metrics → track 'Owner confirmed' in the Request tracker and chase; offer January support meetings."),
@@ -93,11 +94,7 @@ def project_tabs(wb):
         ]),
     ])
 
-    # ---------------- P2 Timeline, RASCI & task register (Gantt)
-    ws = wb.create_sheet("P2 Timeline & RASCI")
-    B.title(ws, "2026 Sustainability Report", "P2. Timeline, RASCI & task register")
-    ws["B3"] = "Indicative dates from the SR26 approach. Governance paper deadlines drive the internal deadlines (leader review = papers due – 3 working days)."
-    ws["B3"].font = Font(name="Aptos", italic=True)
+    # ---------------- P2.1 Governance deadlines / P2.2 Timeline (Gantt) / P2.3 RASCI matrix – three linked sheets
     D = date
     tasks = [
         ("Project set-up (Sep–Oct 2026)", None),
@@ -144,9 +141,18 @@ def project_tabs(wb):
         ("University Executive", "Notes report", D(2027, 3, 25), D(2027, 3, 12), "SR26 approach; SR25: papers 17 Mar, meeting 27 Mar"),
         ("University Council", "Approves report", D(2027, 5, 6), D(2027, 4, 9), "SR26 approach (~10 Apr); SR25: meeting 5 May"),
     ]
+    GOVN, TLN, RAN = "P2.1 Governance deadlines", "P2.2 Timeline", "P2.3 RASCI matrix"
+    q = lambda s: f"'{s}'"
+
+    # ---- P2.1 Governance deadlines (inputs: meeting + papers due; internal deadlines worked back)
+    ws = wb.create_sheet(GOVN)
+    B.title(ws, "2026 Sustainability Report", "P2.1 Governance paper deadlines")
+    ws["B3"] = ("Placeholders – confirm with governance offices. Type the Meeting and Papers due dates; the grey columns and the "
+                "P2.2 Timeline update automatically. Leader review = papers due – 3 working days (weekends skipped, not public holidays).")
+    ws["B3"].font = Font(name="Aptos", italic=True); ws["B3"].alignment = B.WRAP; ws.merge_cells("B3:H3")
     g0 = 5
-    ws.cell(g0 - 1, 2, "Governance paper deadlines (placeholders – confirm with governance offices; edit dates here and the Gantt updates)").font = Font(name="Aptos", bold=True, size=13, color=B.NAVY)
-    B.hdr_row(ws, g0, ["Governance body", "Purpose", "Meeting", "Papers due", "To leaders for review (papers – 3 working days)", "Begin drafting (proposed: papers – 10 working days)", "Source of placeholder"])
+    B.hdr_row(ws, g0, ["Governance body", "Purpose", "Meeting", "Papers due", "To leaders for review (papers – 3 working days)",
+                       "Begin drafting (proposed: papers – 10 working days)", "Source of placeholder"])
     gref = {}
     for k, (body, purpose, meet, papers, src) in enumerate(gov):
         rr = g0 + 1 + k
@@ -156,69 +162,191 @@ def project_tabs(wb):
             if i in (2, 3, 4, 5):
                 c.number_format = "ddd d mmm yyyy"
         gref[k] = rr
-    hr = g0 + len(gov) + 4
-    cols = ["Phase / key activity", "Key milestone", "Start", "End", "When", "R", "A", "S", "C/I", "Priority", "Status"]
-    B.hdr_row(ws, hr, cols)
-    G0 = 2 + len(cols) + 1  # first Gantt column
-    start = date(2026, 10, 5)
-    weeks = [start + timedelta(weeks=i) for i in range(40)]
-    for i, w in enumerate(weeks):
-        c = ws.cell(hr, G0 + i, w); c.number_format = "d"; c.fill = B.HDR
-        c.font = Font(name="Aptos", size=9, bold=True, color="FFFFFF"); c.alignment = Alignment(horizontal="center")
-        if i == 0 or w.month != weeks[i - 1].month:
-            m = ws.cell(hr - 1, G0 + i, w.strftime("%b %Y") if w.month == 1 or i == 0 else w.strftime("%b"))
-            m.font = Font(name="Aptos", bold=True, color="FFFFFF"); m.fill = PatternFill("solid", fgColor=B.NAVY)
-        else:
-            ws.cell(hr - 1, G0 + i).fill = PatternFill("solid", fgColor=B.NAVY)
-        ws.column_dimensions[get_column_letter(G0 + i)].width = 4.2
-    ws.cell(hr - 2, G0, "Week commencing (Mon) – bars fill from Start/End; ◆ = milestone; grey = Christmas shutdown; light blue = governance paper due").font = Font(name="Aptos", italic=True, size=9)
+    B.widths(ws, {"A": 4, "B": 34, "C": 30, "D": 18, "E": 18, "F": 22, "G": 22, "H": 46})
+    ws.freeze_panes = f"A{g0 + 1}"
+
+    # ---- task list (shared by P2.2 and P2.3, same row numbers on both sheets)
     rows = []
     for t in tasks:
         if t == "GOV":
             for k, (body, purpose, *_x) in enumerate(gov):
                 rr = gref[k]; nm = f"{body} – {purpose.lower()}"
-                rows.append((f"Draft paper: {nm}", "Begin drafting → leaders", f"=G{rr}", f"=F{rr}", "SST", "Director, Sustainability", "", "", "High"))
-                rows.append((f"Papers due: {nm}", "Papers due", f"=E{rr}", f"=E{rr}", "SST", "", "", "", "Milestone"))
-                rows.append((f"Meeting: {nm}", "Meeting", f"=D{rr}", f"=D{rr}", "", "", "", "", "Milestone"))
+                G = f"{q(GOVN)}!"
+                final = body == "University Council"
+                rows.append((f"Draft paper: {nm}", "Begin drafting → leaders", f"={G}G{rr}", f"={G}F{rr}", "SST", "Director, Sustainability", "", "", "High", body, "draft"))
+                rows.append((f"Papers due: {nm}", "Papers due", f"={G}E{rr}", f"={G}E{rr}", "SST", "Director, Sustainability", "", "", "Milestone", body, "papers"))
+                rows.append((f"Meeting: {nm}", "Meeting", f"={G}D{rr}", f"={G}D{rr}", "", "", "", "", "Milestone", body, "approve" if final else "meet"))
         else:
             rows.append(t)
+    HR = 7  # header row on P2.2 and P2.3
+
+    # ---- P2.2 Timeline (Gantt)
+    ws = wb.create_sheet(TLN)
+    B.title(ws, "2026 Sustainability Report", "P2.2 Timeline")
+    ws["B3"] = (f"Bars fill from Start/End; ◆ = milestone; green = Complete; grey = Christmas shutdown; light blue = governance papers "
+                f"due (dates from {GOVN}); red header = this week. Lead (R) and Accountable (A) come from {RAN}.")
+    ws["B3"].font = Font(name="Aptos", italic=True)
+    cols = ["Phase / key activity", "Key milestone", "Start", "End", "When", "Lead (R)", "Accountable (A)", "Priority", "Status"]
+    B.hdr_row(ws, HR, cols)
+    G0 = 2 + len(cols) + 1
+    start = date(2026, 10, 5)
+    weeks = [start + timedelta(weeks=i) for i in range(40)]
+    NAVYF = PatternFill("solid", fgColor=B.UOM_NAVY)
+    for i, w in enumerate(weeks):
+        c = ws.cell(HR, G0 + i, w); c.number_format = "d"; c.fill = B.HDR
+        c.font = Font(name="Aptos", size=9, bold=True, color="FFFFFF"); c.alignment = Alignment(horizontal="center")
+        m = ws.cell(HR - 1, G0 + i); m.fill = NAVYF
+        if i == 0 or w.month != weeks[i - 1].month:
+            m.value = w.strftime("%b %Y") if w.month == 1 or i == 0 else w.strftime("%b")
+            m.font = Font(name="Aptos", bold=True, color="FFFFFF")
+        ws.column_dimensions[get_column_letter(G0 + i)].width = 4.2
+    # governance labels above the weeks (SR25 style), pulled from P2.1
+    g1, gN = get_column_letter(G0), get_column_letter(G0 + len(weeks) - 1)
+    for i in range(len(weeks)):
+        col = get_column_letter(G0 + i)
+        parts = []
+        for k, (body, *_x) in enumerate(gov):
+            rr = gref[k]; short = {"Sustainability Reporting Review Group": "Review Grp", "Investment Management Committee": "IMC",
+                                   "University Executive": "UE", "University Council": "UC"}.get(body, body)
+            parts.append(f'IF(AND({q(GOVN)}!$E${rr}>={col}${HR},{q(GOVN)}!$E${rr}<={col}${HR}+6),"{short} papers ","")')
+            parts.append(f'IF(AND({q(GOVN)}!$D${rr}>={col}${HR},{q(GOVN)}!$D${rr}<={col}${HR}+6),"{short} meet ","")')
+        c = ws.cell(HR - 2, G0 + i, "=TRIM(" + "&".join(parts) + ")")
+        c.font = Font(name="Aptos", size=8, bold=True, color="1F4E79"); c.alignment = Alignment(text_rotation=90, horizontal="center", vertical="bottom")
+    ws.row_dimensions[HR - 2].height = 80
     PH = PatternFill("solid", fgColor="156082")
-    r = hr + 1
+    r = HR + 1
     for t in rows:
         if t[1] is None:
             c = ws.cell(r, 2, t[0]); c.font = Font(name="Aptos", bold=True, color="FFFFFF")
             for cc in range(2, G0 + len(weeks)):
                 ws.cell(r, cc).fill = PH
         else:
-            name, ms, s0, e0, R, A, S, CI, pr = t
-            when = f'=TEXT(D{r},"d mmm")&IF(E{r}<>D{r}," – "&TEXT(E{r},"d mmm"),"")'
-            vals = [name, ms, s0, e0, when, R, A, S, CI, pr, "Not yet started"]
+            name, ms, s0, e0, R, A, S, CI, pr = t[:9]
+            when = f'=IF(D{r}="","",TEXT(D{r},"d mmm")&IF(E{r}<>D{r}," – "&TEXT(E{r},"d mmm"),""))'
+            lead = f'=_xlfn.TEXTJOIN(", ",TRUE,IF(ISNUMBER(SEARCH("R",{q(RAN)}!$H{r}:$Z{r})),{q(RAN)}!$H${HR}:$Z${HR},""))'
+            acc = f'=_xlfn.TEXTJOIN(", ",TRUE,IF(LEFT({q(RAN)}!$H{r}:$Z{r},1)="A",{q(RAN)}!$H${HR}:$Z${HR},""))'
+            vals = [name, ms, s0, e0, when, None, None, pr, "Not yet started"]
             for i, v in enumerate(vals):
-                c = ws.cell(r, 2 + i, v); B.body(c)
+                c = ws.cell(r, 2 + i, v); B.body(c, B.GREY if i in (4, 5, 6) else None)
                 if i in (2, 3):
                     c.number_format = "dd/mm/yy"
+            ws.cell(r, 7).value = ArrayFormula(f"G{r}", lead)
+            ws.cell(r, 8).value = ArrayFormula(f"H{r}", acc)
             ms_row = pr == "Milestone"
             for i in range(len(weeks)):
                 col = get_column_letter(G0 + i)
-                c = ws.cell(r, G0 + i, f'=IF(AND({col}${hr}+6>=$D{r},{col}${hr}<=$E{r}),"◆","")' if ms_row else None)
+                c = ws.cell(r, G0 + i, f'=IF(AND({col}${HR}+6>=$D{r},{col}${HR}<=$E{r}),"◆","")' if ms_row else None)
                 c.alignment = Alignment(horizontal="center"); c.font = Font(name="Aptos", bold=True, color="C00000")
                 c.border = Border(left=Side(style="hair", color="BFBFBF"))
         r += 1
     last = r - 1
-    g1, gN = get_column_letter(G0), get_column_letter(G0 + len(weeks) - 1)
-    rng = f"{g1}{hr + 1}:{gN}{last}"
-    from openpyxl.formatting.rule import FormulaRule
-    bar = f'AND($K{hr + 1}<>"Milestone",$D{hr + 1}<>"",{g1}${hr}+6>=$D{hr + 1},{g1}${hr}<=$E{hr + 1})'
-    ws.conditional_formatting.add(rng, FormulaRule(formula=[f'AND({bar},$L{hr + 1}="Complete")'], fill=PatternFill("solid", fgColor="A9D18E"), stopIfTrue=True))
+    rng = f"{g1}{HR + 1}:{gN}{last}"
+    bar = f'AND($I{HR + 1}<>"Milestone",$D{HR + 1}<>"",{g1}${HR}+6>=$D{HR + 1},{g1}${HR}<=$E{HR + 1})'
+    ws.conditional_formatting.add(rng, FormulaRule(formula=[f'AND({bar},$J{HR + 1}="Complete")'], fill=PatternFill("solid", fgColor="A9D18E"), stopIfTrue=True))
     ws.conditional_formatting.add(rng, FormulaRule(formula=[bar], fill=PatternFill("solid", fgColor="4F81BD"), stopIfTrue=True))
-    shut = f'AND({g1}${hr}>=DATE(2026,12,21),{g1}${hr}<=DATE(2026,12,28))'
-    ws.conditional_formatting.add(f"{g1}{hr + 1}:{gN}{last}", FormulaRule(formula=[shut], fill=PatternFill("solid", fgColor="D9D9D9")))
-    paper = f'SUMPRODUCT(($E${g0 + 1}:$E${g0 + len(gov)}>={g1}${hr})*($E${g0 + 1}:$E${g0 + len(gov)}<={g1}${hr}+6))>0'
-    ws.conditional_formatting.add(f"{g1}{hr + 1}:{gN}{last}", FormulaRule(formula=[paper], fill=PatternFill("solid", fgColor="DDEBF7")))
-    ws.conditional_formatting.add(f"{g1}{hr}:{gN}{hr}", FormulaRule(formula=[f"AND(TODAY()>={g1}${hr},TODAY()<={g1}${hr}+6)"], fill=PatternFill("solid", fgColor="C00000")))
-    B.dv_list(ws, '"Not yet started,In progress,Complete,On hold,N/A"', f"L{hr + 1}:L{last}")
-    B.widths(ws, {"A": 2, "B": 50, "C": 20, "D": 14, "E": 14, "F": 15, "G": 15, "H": 15, "I": 12, "J": 12, "K": 11, "L": 14, "M": 2})
-    ws.freeze_panes = f"A{hr + 1}"
+    shut = f'AND({g1}${HR}>=DATE(2026,12,21),{g1}${HR}<=DATE(2026,12,28))'
+    ws.conditional_formatting.add(rng, FormulaRule(formula=[shut], fill=PatternFill("solid", fgColor="D9D9D9")))
+    E_ = f"{q(GOVN)}!$E${g0 + 1}:$E${g0 + len(gov)}"
+    paper = f'SUMPRODUCT(({E_}>={g1}${HR})*({E_}<={g1}${HR}+6))>0'
+    ws.conditional_formatting.add(rng, FormulaRule(formula=[paper], fill=PatternFill("solid", fgColor="DDEBF7")))
+    ws.conditional_formatting.add(f"{g1}{HR}:{gN}{HR}", FormulaRule(formula=[f"AND(TODAY()>={g1}${HR},TODAY()<={g1}${HR}+6)"], fill=PatternFill("solid", fgColor="C00000")))
+    B.dv_list(ws, '"Not yet started,In progress,Complete,On hold,N/A"', f"J{HR + 1}:J{last}")
+    B.widths(ws, {"A": 2, "B": 50, "C": 20, "D": 10, "E": 10, "F": 15, "G": 18, "H": 18, "I": 10, "J": 13, "K": 2})
+    ws.freeze_panes = f"{get_column_letter(G0)}{HR + 1}"   # activity + dates stay visible while scrolling the weeks
+    ws._keep_freeze = True
+
+    # ---- P2.3 RASCI matrix (SR25 RASCI layout: group / contact rows over the team columns, codes per activity, counts)
+    ws = wb.create_sheet(RAN)
+    B.title(ws, "2026 Sustainability Report", "P2.3 RASCI matrix – who does what")
+    ws["B3"] = ("A = Accountable (signs off) • R = Responsible (does the work) • S = Support • C = Consulted • I = Informed. Edit with the dropdown; "
+                f"Lead (R) and Accountable (A) on {TLN} update automatically. Rows match {TLN} row for row.")
+    ws["B3"].font = Font(name="Aptos", italic=True)
+    team = [  # (group, column header, contact, match keywords)
+        ("SST", "SST (team)", "Sustainability Strategy team", ["SST"]),
+        ("SST", "Stefanus", "Stefanus", ["Stefanus"]),
+        ("SST", "Rose", "Rose Hawkins", ["Rose"]),
+        ("Leadership", "Gerard Healey", "Gerard Healey", ["Gerard"]),
+        ("Leadership", "Director, Sustainability", "Director", ["Director"]),
+        ("Leadership", "COO (sponsor)", "COO", ["COO"]),
+        ("Governance", "Review Group", "Convenor TBC", ["Review Group"]),
+        ("Governance", "VCAG", "", ["VCAG"]),
+        ("Governance", "IMC", "", ["Investment Management"]),
+        ("Governance", "University Executive", "", ["University Executive"]),
+        ("Governance", "University Council", "", ["University Council"]),
+        ("Comms & web", "Strategic Comms", "", ["Strategic Comms"]),
+        ("Comms & web", "Comms / digital / design", "", ["Comms/digital", "Comms,", "Design", "design", "digital"]),
+        ("Contributors", "Faculties (ADs Sustainability)", "ADs", ["Faculties", "ADs"]),
+        ("Contributors", "Central data owners", "", ["central units", "Data owners", "data owners"]),
+        ("Contributors", "Working groups", "", ["Working groups"]),
+        ("Contributors", "Annual Report team", "", ["Annual Report"]),
+    ]
+    C0 = 8  # first team column (H) – P2.2 formulas read H:Z
+    for i, (grp, h, contact, _k) in enumerate(team):
+        ws.cell(HR - 2, C0 + i, grp); ws.cell(HR - 1, C0 + i, contact)
+    ws.cell(HR - 2, C0 - 1, "Group >>"); ws.cell(HR - 1, C0 - 1, "Contact >>")
+    for rr in (HR - 2, HR - 1):
+        for cc in range(C0 - 1, C0 + len(team)):
+            c = ws.cell(rr, cc); c.font = Font(name="Aptos", bold=True, size=9, color="FFFFFF" if rr == HR - 2 else "000000")
+            c.fill = NAVYF if rr == HR - 2 else PatternFill("solid", fgColor="DDEBF7"); c.alignment = B.CWRAP; c.border = B.BOX
+    B.hdr_row(ws, HR, ["No.", "Phase / key activity", "Key milestone", "When", "Status", "Activity area >>"] + [t[1] for t in team])
+    for cc in range(C0, C0 + len(team)):
+        ws.cell(HR, cc).alignment = Alignment(text_rotation=90, horizontal="center", vertical="bottom", wrap_text=True)
+    ws.row_dimensions[HR].height = 130
+
+    def codes(t):
+        name, ms, s0, e0, R, A, S, CI, pr = t[:9]
+        out = {}
+        def put(field, code):
+            for tok in [x.strip() for x in field.replace(";", ",").split(",") if x.strip()]:
+                cd = "I" if "(I)" in tok else code
+                for (grp, h, contact, keys) in team:
+                    if any(k in tok for k in keys):
+                        old = out.get(h)
+                        out[h] = cd if old is None else "A and R" if {old, cd} == {"A", "R"} else old
+        put(A, "A"); put(R, "R"); put(S, "S"); put(CI, "C")
+        if len(t) > 9:  # governance rows: the body's column
+            body, kind = t[9], t[10]
+            h = {"Sustainability Reporting Review Group": "Review Group", "Investment Management Committee": "IMC"}.get(body, body)
+            out[h] = {"draft": "I", "papers": "I", "meet": "C", "approve": "A"}[kind]
+            if kind in ("meet", "approve"):
+                out.setdefault("SST (team)", "S"); out.setdefault("Director, Sustainability", "R" if kind == "meet" else "S")
+        return out
+
+    r = HR + 1; n = 0
+    for t in rows:
+        if t[1] is None:
+            ws.cell(r, 3, t[0]).font = Font(name="Aptos", bold=True, color="FFFFFF")
+            for cc in range(2, C0 + len(team)):
+                ws.cell(r, cc).fill = PH
+        else:
+            n += 1
+            vals = [n, f"={q(TLN)}!B{r}", f"={q(TLN)}!C{r}", f"={q(TLN)}!F{r}", f"={q(TLN)}!J{r}", ""]
+            for i, v in enumerate(vals):
+                B.body(ws.cell(r, 2 + i, v), B.GREY if i in (1, 2, 3, 4) else None)
+            cd = codes(t)
+            for i, (grp, h, *_x) in enumerate(team):
+                c = ws.cell(r, C0 + i, cd.get(h)); c.alignment = B.CWRAP; c.border = B.BOX; c.font = Font(name="Aptos", size=9)
+        r += 1
+    last = r - 1
+    area = f"{get_column_letter(C0)}{HR + 1}:{get_column_letter(C0 + len(team) - 1)}{last}"
+    B.dv_list(ws, '"A,R,A and R,S,C,I"', area)
+    for code, colr in (("A and R", "1F4E79"), ("A", "2F75B5"), ("R", "9BC2E6"), ("S", "C6E0B4"), ("C", "FFE699"), ("I", "EDEDED")):
+        ws.conditional_formatting.add(area, CellIsRule(operator="equal", formula=[f'"{code}"'], fill=PatternFill("solid", fgColor=colr),
+                                                       font=Font(bold=True, color="FFFFFF" if code in ("A and R", "A") else "000000"), stopIfTrue=True))
+    # SR25-style counts under the matrix
+    r = last + 2
+    ws.cell(r, 3, "Count of roles per team member").font = Font(name="Aptos", bold=True, color=B.NAVY)
+    for code in ("A and R", "A", "R", "S", "C", "I"):
+        r += 1
+        B.body(ws.cell(r, 7, code), B.REFF, bold=True)
+        for i in range(len(team)):
+            L = get_column_letter(C0 + i)
+            c = ws.cell(r, C0 + i, f'=COUNTIF({L}${HR + 1}:{L}${last},$G{r})'); B.body(c, B.GREY); c.alignment = B.CWRAP
+    B.widths(ws, {"A": 2, "B": 5, "C": 50, "D": 20, "E": 14, "F": 13, "G": 12})
+    for i in range(len(team)):
+        ws.column_dimensions[get_column_letter(C0 + i)].width = 7.5
+    ws.freeze_panes = f"{get_column_letter(C0)}{HR + 1}"
+    ws._keep_freeze = True
 
     # ---------------- P3 To do list – comms + web
     ws = wb.create_sheet("P3 To do – comms+web")

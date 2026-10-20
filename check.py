@@ -33,7 +33,7 @@ for f in req_files:  # request files keep a stable name; the version is shown in
     check(_w.properties.version == V, f"{f.split('/')[-1][:12]}: version {V} in file properties")
     for _s in [x for x in _w.worksheets if x.sheet_state == "visible"]:  # layout rules for Excel online
         check(_s["A1"].value is None and _s["B1"].value is None, f"{f.split('/')[-1][:12]}/{_s.title}: row 1 empty")
-        check(not _s.freeze_panes or _s.freeze_panes.startswith("A"), f"{f.split('/')[-1][:12]}/{_s.title}: no frozen columns")
+        check(not _s.freeze_panes or _s.freeze_panes.startswith("A") or _s.title in ("P2.2 Timeline", "P2.3 RASCI matrix"), f"{f.split('/')[-1][:12]}/{_s.title}: no frozen columns")
 check(bool(glob.glob(f"output/SR26 project management - {V}.xlsx")), "separate project management workbook exists")
 check(not any(n.startswith("P") and n[1].isdigit() for n in M.sheetnames), "no project (P0–P5) tabs left in the master")
 check(not stale, f"master/project files carry {V}; request files use stable names ({len(req_files)} requests)")

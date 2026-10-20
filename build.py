@@ -27,7 +27,7 @@ SRC = ROOT / "source"
 OUT = ROOT / "output"
 
 # ---------------------------------------------------------------- settings
-VERSION = "v0.24"  # bump on every revision; appears in file names and Read me
+VERSION = "v0.25"  # bump on every revision; appears in file names and Read me
 VERSION_HISTORY = [
     ("v0.1", "First draft: requirements matrix, pilot faculty and central-unit requests, tracker, evidence register."),
     ("v0.2", "SR25-style faculty wording and 'How SST will use'; scoring/T1/T2 formulas; Legal & Risk; project tabs; linked SR25 responses tab."),
@@ -53,6 +53,7 @@ VERSION_HISTORY = [
     ("v0.22", "CDSS references unified to the Sustainability Strategy team (SST) – same team; MRE section label clarified (MBI = Melbourne Biodiversity Institute, NB2(a) nature footprint)."),
     ("v0.23", "Rose feedback: due 24 Dec 2026 (Christmas shutdown); end-2025 pointer moved to the end of each request and 'build on this' sentence removed; EE1(a) notes the 23 Nov joint ADs session, Melbourne Plus/Wattle note removed; EE1(b) dropped for ABP only; new CLLAP wording; MRE spelled out; P2 Gantt rebuilt with governance paper deadlines (SR25 placeholders, -3 days leader review); University of Melbourne navy banner and logo on all tabs."),
     ("v0.24", "EE1(b) removed from all faculty requests (8 faculty questions); P2 'Start paper' renamed 'Begin drafting (proposed)'."),
+    ("v0.25", "Project workbook: P2 split into P2.1 Governance deadlines, P2.2 Timeline (Gantt, governance labels above the weeks) and P2.3 RASCI matrix (SR25 layout, task × team, counts); P2.2/P2.3 freeze activity columns and header rows; all three linked."),
     ("v0.24", "P2: 'Start paper' renamed 'Begin drafting (proposed)'."),
 ]
 # Team timeline (Oct 2026): early engagement w/c 26 Oct; requests issued W1 Nov; collection to 24 Dec (Christmas shutdown, Rose);
@@ -181,7 +182,8 @@ def finalize(wb):
         fp = ws.freeze_panes
         if fp:
             row = int("".join(ch for ch in fp if ch.isdigit()))
-            ws.freeze_panes = f"A{row}" if row <= 12 else None
+            if not getattr(ws, "_keep_freeze", False):  # P2.2/P2.3 keep frozen columns for navigation (title is short)
+                ws.freeze_panes = f"A{row}" if row <= 12 else None
         width = {}
         for c in range(1, ws.max_column + 1):
             d = ws.column_dimensions[get_column_letter(c)]
@@ -834,7 +836,7 @@ def master(qual, quan, fac_rows, central_sections, sr25_all):
         ("Purpose", "Central record of SR26 data requirements, owners, reporting requests, responses and evidence. Adapted from the 2025 end-year reporting master spreadsheet (V0.2) and the Sustainability 2030 updated targets (Qual and Quan worksheets)."),
         ("Status", f"DRAFT {VERSION} – {len(PILOT_FACULTIES)} faculties ({', '.join(PILOT_FACULTIES)}) and {len(CENTRAL)} central units ({', '.join(c[0] for c in CENTRAL)})."),
         ("Reporting approach", "Transition year: cover all of CY2026, distinguishing former Sustainability Plan 2030 activity from foundations and early actions after the Sustainability 2030 launch (~20 Oct 2026). Databook is the authoritative quantitative source. No target status rating (Met/Partially met/Not met) is requested in 2026 (team decision) – requests collect commentary and evidence only."),
-        ("Key dates (TBC)", f"Early engagement (existing meetings): w/c 26 Oct 2026 | Requests issued: W1 Nov (from 2 Nov) | Collection period incl. optional 1:1 meetings: 2 Nov – 24 Dec (~7 weeks) | Responses and highlighted stories due: {DUE_DATE} | First review: w/c 4 Jan 2027 | Targeted follow-up: 4–15 Jan | Consolidated master: w/c 18 Jan | Governance paper deadlines: see P2 in the project workbook (placeholders from SR25)"),
+        ("Key dates (TBC)", f"Early engagement (existing meetings): w/c 26 Oct 2026 | Requests issued: W1 Nov (from 2 Nov) | Collection period incl. optional 1:1 meetings: 2 Nov – 24 Dec (~7 weeks) | Responses and highlighted stories due: {DUE_DATE} | First review: w/c 4 Jan 2027 | Targeted follow-up: 4–15 Jan | Consolidated master: w/c 18 Jan | Governance paper deadlines: see P2.1 in the project workbook (placeholders – SR26 approach, SR25 for comparison)"),
         ("Tabs", "1. Requirements matrix – every S2030 qualitative indicator, owner and request\n"
                  "2. Quant coverage – every quantitative indicator checked against the Databook draft, owner and action\n"
                  "2b. Databook register – every Databook data point with columns to confirm definition, source, owner\n"
