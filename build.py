@@ -355,6 +355,7 @@ STORY_ROWS = {}  # unit code -> first story-slot row on the master's Highlighted
 REQ_SHEETS = {}  # code -> sheet names of the request workbook (for the external link part)
 REQ_ROWS = {}  # code -> {"refs": {ref: row on tab 1}, "stories": [rows on tab 2]} – filled by request_workbook
 MASTER_ROWS = {}  # code -> {"sheet": master unit tab, "r0", "r1": row span, "wording": {(row, col): text}} – filled by master
+SPARE = 10  # spare indicator rows on the Requirements matrix (and A1 groups) for indicators added after issue
 MASTER_COLS = range(3, 8)  # C–G (priority area, target, indicator, request wording, how SST will use) flow master → requests
 MASTER_SHEETS = []  # the master's sheet names, in order (for the request files' external link part)
 
@@ -955,7 +956,15 @@ def master(qual, quan, fac_rows, central_sections, sr25_all):
         for i, v in enumerate(vals):
             body(ws.cell(rr, 2 + i, v), REFF if i == 0 else None, bold=i == 0)
         ws.row_dimensions[rr].height = 90
-    ws.auto_filter.ref = f"B5:{get_column_letter(1 + len(cols))}{5 + len(qual)}"
+    for k in range(SPARE):  # spare rows: a new indicator typed here shows up in A1 and T2 automatically
+        rr = 6 + len(qual) + k
+        for i in range(len(cols)):
+            body(ws.cell(rr, 2 + i, "" if i else None), GOLD if i in (0, 2, 3, 4, 5) else None)
+        ws.row_dimensions[rr].height = 30
+    note = ws.cell(6 + len(qual) + SPARE, 2, f"Gold rows above: {SPARE} spare rows for new indicators – type the Ref (exactly as in the unit tabs and "
+                                               "request files), priority area, target, indicator and requirement; A1 and T2 pick them up.")
+    note.font = Font(name="Aptos", italic=True, color="808080")
+    ws.auto_filter.ref = f"B5:{get_column_letter(1 + len(cols))}{5 + len(qual) + SPARE}"
     ws.freeze_panes = "D6"
     widths(ws, dict(zip("BCDEFGHIJKLMNOPQ", [9, 16, 18, 40, 40, 50, 18, 22, 40, 11, 12, 30, 10, 18, 24, 12])))
 
@@ -1195,6 +1204,33 @@ def scoring_tabs(wb, qual, reg):
                 for h, f in fs.items():
                     body(ws.cell(r, sc0 + score_cols.index(h), f), PatternFill("solid", fgColor="E2EFDA"))
             r += 1
+    rm = "'1. Requirements matrix'"
+    for k in range(SPARE):  # spare groups fed by the Requirements matrix spare rows (blank until a Ref is typed there)
+        mr = 6 + len(qual) + k
+        for fi, (fname, col) in enumerate(FIELDS):
+            ws.cell(r, 1, f'=F{r}&"|"&G{r}')
+            if fi == 0:
+                for i, mc in enumerate("BDFG"):
+                    body(ws.cell(r, 2 + i, f'=IF({rm}!{mc}{mr}="","",{rm}!{mc}{mr})'), REFF, bold=(i == 0))
+            else:
+                for i in range(4):
+                    body(ws.cell(r, 2 + i))
+            body(ws.cell(r, 6, f'=IF({rm}!B{mr}="","",{rm}!B{mr})')); body(ws.cell(r, 7, fname))
+            for i, (k_, sheet, r0, last) in enumerate(units):
+                rng = f"'{sheet}'!${col}${r0}:${col}${last}"
+                key = f"'{sheet}'!$B${r0}:$B${last}"
+                a = f"INDEX({rng},MATCH($F{r},{key},0))"
+                c = ws.cell(r, 8 + i, f'=IF($F{r}="","",IFERROR(IF({a}="","{AUTOFILL}",{a}),"N/A"))'); body(c, GREY)
+                c.alignment = Alignment(wrap_text=False, vertical="top")
+            if fi == 0:
+                o1, o2 = (f"$H{r + j}:${lastu}{r + j}" for j in (0, 1))
+                got = lambda rg: f'(({rg}<>"N/A")*({rg}<>"{AUTOFILL}")*({rg}<>""))'
+                fs = {"Units asked": f'=IF($F{r}="","",SUMPRODUCT(({o1}<>"N/A")*({o1}<>"")))',
+                      "Responses received": f'=IF($F{r}="","",SUMPRODUCT(--(({got(o1)}+{got(o2)})>0)))',
+                      "Awaiting response": f'=IF($F{r}="","",{C["Units asked"]}{r}-{C["Responses received"]}{r})'}
+                for h, f in fs.items():
+                    body(ws.cell(r, sc0 + score_cols.index(h), f), PatternFill("solid", fgColor="E2EFDA"))
+            r += 1
     last_a1 = r - 1
     ws.column_dimensions["A"].hidden = True
     widths(ws, {"B": 9, "C": 16, "D": 36, "E": 36, "F": 9, "G": 30})
@@ -1212,7 +1248,7 @@ def scoring_tabs(wb, qual, reg):
     t1["C4"] = "Description"; t1["C4"].font = Font(name="Aptos", bold=True)
     t1["D4"] = ("Review of individual unit responses for every indicator – only the units asked about each indicator are shown. "
                 "Values come from A1 (do not type in grey cells); record your review in the 'Reviewer notes' column. "
-                "Use T2 to focus on a single indicator.")
+                "Use T2 to focus on a single indicator – including any new indicator added in the Requirements matrix spare rows (T1 lists the original set).")
     t1["D4"].alignment = WRAP; t1.merge_cells("D4:J5"); t1.row_dimensions[4].height = 30
     asked = {}
     for i, (k, sheet, r0, last) in enumerate(units):
@@ -1266,13 +1302,13 @@ def scoring_tabs(wb, qual, reg):
     note_f = "".join(f'IF($C$4="{k}","{v}",' for k, v in MERGED.items())
     t2["D4"] = f'={note_f}"← select an indicator ref from the dropdown"' + ")" * len(MERGED)
     t2["D4"].font = Font(name="Aptos", bold=True, color="C00000")
-    rm = "'1. Requirements matrix'"
-    dv_list(t2, f"={rm}!$B$6:$B${5 + len(qual)}", "C4")
+    nm = 5 + len(qual) + SPARE  # last Requirements matrix row incl. spare rows
+    dv_list(t2, f"={rm}!$B$6:$B${nm}", "C4")
     info = [("Priority area", "D"), ("Target", "E"), ("Indicator", "F"), ("Reporting requirement", "G"), ("Request issued to", "I")]
     for i, (lbl, col) in enumerate(info):
         a = t2.cell(5 + i, 2, lbl); a.font = Font(name="Aptos", bold=True, color="FFFFFF"); a.fill = HDR; a.border = BOX
         t2.merge_cells(start_row=5 + i, start_column=3, end_row=5 + i, end_column=8)
-        c = t2.cell(5 + i, 3, f"=IFERROR(INDEX({rm}!${col}$6:${col}${5 + len(qual)},MATCH($C$4,{rm}!$B$6:$B${5 + len(qual)},0)),\"\")")
+        c = t2.cell(5 + i, 3, f"=IFERROR(INDEX({rm}!${col}$6:${col}${nm},MATCH($C$4,{rm}!$B$6:$B${nm},0)),\"\")")
         c.alignment = WRAP; c.border = BOX
         t2.row_dimensions[5 + i].height = 45
     srow = 11

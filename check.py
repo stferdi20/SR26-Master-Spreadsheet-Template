@@ -89,7 +89,7 @@ for code, rows in req_rows.items():
 
 # ---- requirements matrix 'issued to' matches requests
 rm = M["1. Requirements matrix"]
-issued = {rm.cell(r, 2).value: str(rm.cell(r, 9).value) for r in range(6, rm.max_row + 1) if rm.cell(r, 2).value}
+issued = {rm.cell(r, 2).value: str(rm.cell(r, 9).value) for r in range(6, rm.max_row + 1) if rm.cell(r, 2).value and not str(rm.cell(r, 2).value).startswith("Gold rows")}
 check(set(issued) == ref_ok, f"requirements matrix holds exactly the {len(ref_ok)} non-quant-only indicators")
 for code, rows in req_rows.items():
     tag = "Faculties" if code in B.PILOT_FACULTIES else code
@@ -106,7 +106,10 @@ check(a1_units == t2_units, f"A1 and T2 list the same {len(a1_units)} unit secti
 check("0.5 Target Check" not in M.sheetnames and "3c. RASCI triangulation" not in M.sheetnames, "removed tabs are gone")
 n_sections = len(B.PILOT_FACULTIES) + sum(1 for c in B.CENTRAL for _, m in c[3] if any(m(q) for q in qual))
 check(len(a1_units) == n_sections, f"scoring covers every unit section with requests ({n_sections})")
-a1_refs = {a1.cell(r, 2).value for r in range(11, a1.max_row + 1) if a1.cell(r, 2).value}
+a1_refs = {a1.cell(r, 2).value for r in range(11, a1.max_row + 1) if a1.cell(r, 2).value and not str(a1.cell(r, 2).value).startswith("=")}
+spare = [r for r in range(11, a1.max_row + 1) if str(a1.cell(r, 2).value).startswith("=IF('1. Requirements matrix'!B")]
+check(len(spare) == B.SPARE, f"A1 has {B.SPARE} spare indicator groups fed by the Requirements matrix spare rows")
+check(f"$B$6:$B${5 + len(ref_ok) + B.SPARE}" in str(t2.data_validations.dataValidation[0].formula1), "T2 dropdown includes the spare rows")
 check(a1_refs == ref_ok, "A1 scores exactly the requirements-matrix indicators")
 
 # ---- RASCI: every request row is an R for that area; no R without a request (except quant/compile)
