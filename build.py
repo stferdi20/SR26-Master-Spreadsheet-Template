@@ -355,6 +355,7 @@ STORY_ROWS = {}  # unit code -> first story-slot row on the master's Highlighted
 REQ_SHEETS = {}  # code -> sheet names of the request workbook (for the external link part)
 REQ_ROWS = {}  # code -> {"refs": {ref: row on tab 1}, "stories": [rows on tab 2]} – filled by request_workbook
 MASTER_ROWS = {}  # code -> {"sheet": master unit tab, "r0", "r1": row span, "wording": {(row, col): text}} – filled by master
+MASTER_COLS = range(3, 8)  # C–G (priority area, target, indicator, request wording, how SST will use) flow master → requests
 MASTER_SHEETS = []  # the master's sheet names, in order (for the request files' external link part)
 
 
@@ -860,12 +861,14 @@ def request_workbook(code, name, sections, sr25, ref_map=None, sr25_sections=Non
             if ws.cell(r, 2).value:
                 refs[ws.cell(r, 2).value] = r
     REQ_ROWS[code] = {"refs": refs, "stories": [10, 11, 12]}
-    link = MASTER_ROWS.get(code)  # second pass: wording looked up in the master's unit tab (edit wording there)
+    link = MASTER_ROWS.get(code)  # second pass: C–G looked up in the master's unit tab by "unit|ref" (edit them there)
     if link:
-        q, a0, a1 = f"'[1]{link['sheet']}'!", link["r0"], link["r1"]
+        q = f"'[1]{link['sheet']}'!"
         for ref, r in refs.items():
-            a = f"INDEX({q}$F${a0}:$F${a1},MATCH($B{r},{q}$B${a0}:$B${a1},0))"
-            ws.cell(r, 6).value = f'=IFERROR(IF({a}="","",{a}),"")'
+            for c in MASTER_COLS:
+                col = get_column_letter(c)
+                a = f'INDEX({q}${col}$1:${col}$2000,MATCH("{code}|"&$B{r},{q}$A$1:$A$2000,0))'
+                ws.cell(r, c).value = f'=IFERROR(IF({a}="","",{a}),"")'
     REQ_SHEETS[code] = None  # set after tab order is final
     protect(ws, [(r, c) for r in refs.values() for c in range(12, 16)])
     # no frozen panes: a frozen column clips the title and section names in column B
@@ -1052,14 +1055,19 @@ def master(qual, quan, fac_rows, central_sections, sr25_all):
     # Highlighted stories – compiled from every request's Tab 2, with SST assessment columns
     stories_master(wb)
     link_cells(wb, reg)  # after the stories tab exists
-    for key, sheet, r0, r1 in reg:  # where each unit's wording sits, for the request files' Column F lookups
+    # Hidden key in Column A ("unit|ref") on each unit tab: request files find their rows by it anywhere on the tab,
+    # so rows can be inserted or deleted in the master (copy a whole row and the key comes with it).
+    for key, sheet, r0, r1 in reg:
         code = key if sheet == "Faculties" else sheet
-        m = MASTER_ROWS.setdefault(code, {"sheet": sheet, "r0": r0, "r1": r1, "wording": {}})
-        m["r0"], m["r1"] = min(m["r0"], r0), max(m["r1"], r1)
+        ws = wb[sheet]
+        ws.column_dimensions["A"].hidden = True
+        m = MASTER_ROWS.setdefault(code, {"sheet": sheet, "wording": {}})
         for r in range(r0, r1 + 1):
-            if ref := wb[sheet].cell(r, 2).value:
-                m["wording"][(r, 2)] = ref
-                m["wording"][(r, 6)] = wb[sheet].cell(r, 6).value or ""
+            ws.cell(r, 1).value = f'="{code}|"&B{r}'
+            if ref := ws.cell(r, 2).value:
+                m["wording"][(r, 1)] = f"{code}|{ref}"  # cached values: shown before the link is refreshed
+                for c in MASTER_COLS:
+                    m["wording"][(r, c)] = ws.cell(r, c).value or ""
 
     # Evidence register – kept simple: one line per material claim or figure used in the report
     ws = wb.create_sheet("Evidence register")
