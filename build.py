@@ -27,7 +27,7 @@ SRC = ROOT / "source"
 OUT = ROOT / "output"
 
 # ---------------------------------------------------------------- settings
-VERSION = "v0.26"  # bump on every revision; appears in file names and Read me
+VERSION = "v0.27"  # bump on every revision; appears in file names and Read me
 VERSION_HISTORY = [
     ("v0.1", "First draft: requirements matrix, pilot faculty and central-unit requests, tracker, evidence register."),
     ("v0.2", "SR25-style faculty wording and 'How SST will use'; scoring/T1/T2 formulas; Legal & Risk; project tabs; linked SR25 responses tab."),
@@ -55,6 +55,7 @@ VERSION_HISTORY = [
     ("v0.24", "EE1(b) removed from all faculty requests (8 faculty questions); P2 'Start paper' renamed 'Begin drafting (proposed)'."),
     ("v0.25", "Project workbook: P2 split into P2.1 Governance deadlines, P2.2 Timeline (Gantt, governance labels above the weeks) and P2.3 RASCI matrix (SR25 layout, task × team, counts); P2.2/P2.3 freeze activity columns and header rows; all three linked."),
     ("v0.26", "Rose feedback (MRE/CI&S/CFOG/AC&M): 'Data owner confirms' and 'Confirmed by' columns removed everywhere (Column O now notes the contact person); 'faculty' / 'portfolio' / 'the University' wording per unit; 'sustainability outcomes' in EN1(c); CLLAP spelled out; MRE asked every research indicator in three consolidated rows (TR1–TR3, parts a–d) incl. SciVal/Altmetric output and MRE + University-wide progress for TR3; AC&M asked about the University and alumni (EE1(d)); CL2(a) removed from AC&M and TR3(b) from CFOG; CI&S end-2025 notes and CL1(c) GHG Inventory request updated; master Column F now pulls request wording from the request files."),
+    ("v0.27", "MRE: one row per research indicator (TR1(a)–TR3(d), 12 rows, in order) instead of three consolidated rows, keeping Rose's TR2(c) SciVal/Altmetric and TR3 MRE + University-wide wording; NB2(a)/MBI removed from MRE (skipped for now)."),
     ("v0.24", "P2: 'Start paper' renamed 'Begin drafting (proposed)'."),
 ]
 # Team timeline (Oct 2026): early engagement w/c 26 Oct; requests issued W1 Nov; collection to 24 Dec (Christmas shutdown, Rose);
@@ -99,8 +100,7 @@ CENTRAL = [
      [("CIOG – Responsible AI & digital", lambda r: "CIOG" in r["stake"])]),
     ("MRE", "Melbourne Research and Enterprise (MRE)",
      "Chancellery Research and Enterprise",
-     [("MRE – Melbourne Research and Enterprise (incl. Melbourne Biodiversity Institute for NB2(a))",
-       lambda r: r["pa"] == "Transformational research" or "MRE" in r["stake"] or "MBI" in r["stake"])]),
+     [("MRE – Melbourne Research and Enterprise", lambda r: r["pa"] == "Transformational research")]),  # MBI (NB2(a)) skipped for now
     # Chancellery units – each reported separately (SR25 Chancellery tab sections), named as the team uses them
     ("AC&M", "Advancement, Communication and Marketing (AC&M)", "Chancellery – Advancement, Communications & Marketing",
      [("AC&M – Advancement, Communication and Marketing", lambda r: r["row"] in (16, 54))]),
@@ -550,6 +550,9 @@ def block(ws, top, unit_label, rows, sr25, lists, reg=None, key=None, ref_map=No
         if (code, r["row"]) in PREV_NOTE:
             request = request.split("\n\nWe did not receive")[0].split("\n\nIn end-2025")[0] + "\n\n" + PREV_NOTE[(code, r["row"])]
         request = adapt(request, code)
+        if code == "MRE" and r["ref"].startswith("TR3"):  # research target 3: MRE owns it University-wide (Rose)
+            request = ("MRE is responsible for this target at a University-wide level – please describe progress within MRE and "
+                       "progress across the University.\n\n" + request.replace("within MRE and across the University", "across the University"))
         if r["ref"] in quant_refs:
             request += "\n\nQuantitative figures for this indicator are requested separately in Tab 4 (Quantitative data)."
         href = sref if sref else ("N/A – new indicator" if sr25 is not None else "")
@@ -1058,6 +1061,7 @@ def master(qual, quan, fac_rows, central_sections, sr25_all):
         ("TR2(b) 'Documented progress of strategic initiatives, incl. Impact Accelerators' reuses the TR2(d) case-study wording and has no stakeholder in the Qual sheet – left as-is.", "TR2(b)", "TBC", "Review wording/owner", "Open"),
         ("Quantitative-only rows (no stakeholder in the Qual sheet) removed from the requirements matrix and moved to '2. Quant coverage'; Databook gaps requested in Tab 4 of the owning central unit's request.", "TR2(b); CL1(a)-(b); CL2(b); NB1(a); CE1-2; RP2; RI1(a)", "Stefanus", "Confirm owners and Databook coverage with Chris", "Open"),
         ("No target status rating requested in 2026 (Rose): rating column removed from all requests; A1 now summarises responses instead of scoring.", "All", "Director, Sustainability", "Revisit for 2027 with the new traffic-light framework", "Closed"),
+        ("NB2(a) baseline nature footprint (Melbourne Biodiversity Institute) not requested for now – MBI skipped and removed from the MRE request.", "MRE", "Stefanus", "Decide later how to collect from MBI (August)", "Open"),
         ("CL2(a) removed from AC&M (Rose) – no unit is now asked CL2(a) in 2026.", "AC&M", "Stefanus", "Decide later: other owner or leave unreported", "Open"),
         ("TR3(b) removed from CFOG (Rose).", "CFOG", "Stefanus", "None – MRE covers TR3 University-wide", "Closed"),
         ("'Data owner confirms' (Yes/No) and 'Confirmed by' columns removed from all requests (Rose). Comms to ask that responses are returned once reviewed and confirmed by the most senior person in the faculty/portfolio; Column O records the contact closest to the data.", "All", "Stefanus", "Add to request comms", "Open"),
@@ -1339,7 +1343,6 @@ def main():
     sr25 = read_sr25_faculty()
     fac_rows = [r for r in qual if asks_faculties(r)]
     central_sections = {code: [(label, [r for r in qual if m(r)]) for label, m in secs] for code, _, _, secs in CENTRAL}
-    central_sections["MRE"] = [(l, consolidate_mre(rows)) for l, rows in central_sections["MRE"]]
     print("Qual indicators:", len(qual), "| faculty rows:", len(fac_rows), "| quant rows:", len(quan))
     for code, name in PILOT_FACULTIES.items():
         s25 = sr25_for(code)

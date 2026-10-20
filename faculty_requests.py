@@ -65,7 +65,9 @@ TAILORED = {
 
 # Central-unit wording overrides (otherwise the S2030 Qual-sheet wording is used)
 CENTRAL_WORDING = {
-    26: "Please provide the 2026 Greenhouse Gas Inventory.",  # CL1(c) – CI&S (Rose, v0.26)
+    26: "Please provide the 2026 Greenhouse Gas Inventory.",
+    18: "Please prepare the SciVal and Altmetric output on sustainability-related research (e.g. SDG-mapped publications), as previously "
+        "prepared by Shane Wood.",  # TR2(c) – MRE (Rose, v0.26)  # CL1(c) – CI&S (Rose, v0.26)
     11: "Can you list any notable alumni working in sustainability? (Name, course and graduating year, a short summary and a link "
         "to a profile if available; please note whether consent to be featured is likely.)",
     53: "Please comment on sustainability-related living labs in your area – their activities, outputs, outcomes and impact.",
