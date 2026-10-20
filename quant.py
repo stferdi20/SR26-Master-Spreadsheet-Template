@@ -129,7 +129,7 @@ def coverage(qual, quan, db):
         if own is None:
             action = note or "SST compiles – no request"
         elif with_data:
-            action = "Owner confirms existing figures and provides CY2026 (provisional by 15 Dec, final Jan–Feb) – Tab 4 of owner's request"
+            action = "Owner confirms existing figures and provides CY2026 (provisional by 24 Dec, final Jan–Feb) – Tab 4 of owner's request"
         elif pts:
             action = "Owner provides CY2026 (and earlier years if available) and confirms metric definition – Tab 4 of owner's request"
         else:

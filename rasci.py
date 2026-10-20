@@ -35,13 +35,11 @@ def rasci_tab(wb, qual, coverage, faculties, central):
     import build as B
     import quant
     ws = wb.create_sheet("3b. RASCI matrix")
-    ws.sheet_view.showGridLines = False
-    ws["B1"] = "Sustainability 2030 – SR26 reporting roles (RASCI)"
-    ws["B1"].font = Font(name="Aptos", size=20, bold=True, color=B.NAVY)
-    ws["B2"] = ("Who is Accountable / Responsible / Support / Consulted / Informed for reporting each Sustainability 2030 indicator in SR26. "
+    B.title(ws, "", "3b. RASCI matrix – SR26 reporting roles")
+    ws["B3"] = ("Who is Accountable / Responsible / Support / Consulted / Informed for reporting each Sustainability 2030 indicator in SR26. "
                 "Green columns are consolidated portfolios (click [+]/[–] above to show or hide their areas). Codes are pre-filled from the "
                 "requests issued; edit with the dropdown. Accountable owners (A) are TBC – to confirm with the Director, Sustainability.")
-    ws["B2"].alignment = B.WRAP; ws.merge_cells("B2:G2"); ws.row_dimensions[2].height = 48
+    ws["B3"].alignment = B.WRAP; ws.merge_cells("B3:G5")
 
     # ---- columns: (portfolio, area label, key, is_consolidated)
     # all pilot faculties receive the same questions, so they share one column (team decision, Rose)

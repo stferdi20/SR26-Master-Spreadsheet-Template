@@ -27,7 +27,7 @@ SRC = ROOT / "source"
 OUT = ROOT / "output"
 
 # ---------------------------------------------------------------- settings
-VERSION = "v0.22"  # bump on every revision; appears in file names and Read me
+VERSION = "v0.23"  # bump on every revision; appears in file names and Read me
 VERSION_HISTORY = [
     ("v0.1", "First draft: requirements matrix, pilot faculty and central-unit requests, tracker, evidence register."),
     ("v0.2", "SR25-style faculty wording and 'How SST will use'; scoring/T1/T2 formulas; Legal & Risk; project tabs; linked SR25 responses tab."),
@@ -51,11 +51,12 @@ VERSION_HISTORY = [
     ("v0.20", "Request files for CI&S and L&R named with '&' (CI&S / L&R - SR26 sustainability reporting request.xlsx); master links updated."),
     ("v0.21", "All 9 faculties: FAM, FEIT, FoE, MLS and MDHS added (same 9 questions, own SR25 responses, linked into the master)."),
     ("v0.22", "CDSS references unified to the Sustainability Strategy team (SST) – same team; MRE section label clarified (MBI = Melbourne Biodiversity Institute, NB2(a) nature footprint)."),
+    ("v0.23", "Rose feedback: due 24 Dec 2026 (Christmas shutdown); end-2025 pointer moved to the end of each request and 'build on this' sentence removed; EE1(a) notes the 23 Nov joint ADs session, Melbourne Plus/Wattle note removed; EE1(b) dropped for ABP only; new CLLAP wording; MRE spelled out; P2 Gantt rebuilt with governance paper deadlines (SR25 placeholders, -3 days leader review); University of Melbourne navy banner and logo on all tabs."),
 ]
-# Team timeline (Oct 2026): early engagement w/c 26 Oct; requests issued W1 Nov; 6-week collection to 15 Dec;
-# first review W3 Dec; targeted follow-up W3–W4 Dec; consolidated master W4 Dec.
-DUE_DT = date(2026, 12, 15)
-DUE_DATE = "Tuesday 15 December 2026"
+# Team timeline (Oct 2026): early engagement w/c 26 Oct; requests issued W1 Nov; collection to 24 Dec (Christmas shutdown, Rose);
+# first review w/c 4 Jan 2027; targeted follow-up 4–15 Jan; consolidated master w/c 18 Jan.
+DUE_DT = date(2026, 12, 24)
+DUE_DATE = "Thursday 24 December 2026 (Christmas shutdown)"
 STORIES_DUE = DUE_DATE
 CONTACT = "Sustainability Strategy team (SST) – questions and clarifications are recorded centrally (contact email TBC); optional 1:1 meetings available on request"
 PILOT_FACULTIES = {  # SR25 code -> full name
@@ -137,11 +138,34 @@ WRAP = Alignment(wrap_text=True, vertical="top")
 CWRAP = Alignment(wrap_text=True, vertical="center", horizontal="center")
 
 
+UOM_NAVY = "000F46"  # University of Melbourne navy (logo background, as the SR25 reference spreadsheets)
+LOGO = Path(__file__).parent / "assets" / "logo.png"
+
+
 def title(ws, text, sub):
-    """Sheet title in B2 (row 1 left empty – no running header or version)."""
-    ws["B2"] = sub; ws["B2"].font = Font(name="Aptos", size=22, bold=True, color=NAVY)
-    ws.row_dimensions[2].height = 34
+    """Sheet title in B2, white on the navy banner (rows 1–2) that finalize() draws with the logo. No version shown."""
+    ws["B2"] = sub; ws["B2"].font = Font(name="Aptos", size=22, bold=True, color="FFFFFF")
+    ws["B2"].alignment = Alignment(vertical="center", indent=4)
+    ws.row_dimensions[2].height = 58
     ws.sheet_view.showGridLines = False
+
+
+def banner(ws):
+    """Navy band across rows 1–2 with the University logo at the left (SR25 reference look)."""
+    from openpyxl.drawing.image import Image as XLImage
+    from openpyxl.drawing.spreadsheet_drawing import AnchorMarker, OneCellAnchor
+    from openpyxl.drawing.xdr import XDRPositiveSize2D
+    from openpyxl.utils.units import pixels_to_EMU
+    fill = PatternFill("solid", fgColor=UOM_NAVY)
+    last = max(ws.max_column, 18)
+    for r in (1, 2):
+        for c in range(1, last + 1):
+            ws.cell(r, c).fill = fill
+    ws.row_dimensions[1].height = 8
+    img = XLImage(str(LOGO)); px = 64
+    img.anchor = OneCellAnchor(_from=AnchorMarker(col=0, colOff=pixels_to_EMU(6), row=1, rowOff=pixels_to_EMU(6)),
+                               ext=XDRPositiveSize2D(pixels_to_EMU(px), pixels_to_EMU(px)))
+    ws.add_image(img)
 
 
 def finalize(wb):
@@ -150,6 +174,8 @@ def finalize(wb):
     import math
     from openpyxl.utils import column_index_from_string
     for ws in wb.worksheets:
+        if ws.sheet_state == "visible" and ws["B2"].value and ws["B2"].font.color is not None and ws["B2"].font.color.rgb == "00FFFFFF":
+            banner(ws)
         fp = ws.freeze_panes
         if fp:
             row = int("".join(ch for ch in fp if ch.isdigit()))
@@ -275,7 +301,12 @@ EXCLUSIVE = {11: "SaSS",                      # EE1(d) alumni
              13: "MRE", 14: "MRE", 15: "MRE",  # TR1(b), (c), (d) academic–professional collaboration mechanisms
              20: "MRE", 22: "MRE", 23: "MRE"}  # TR3(a), (c), (d) research systems, culture, assessment
 FACULTY_REMOVED = {55}  # EN1(d) governance – not asked of faculties (central units keep it)
+FACULTY_SKIP = {"ABP": {9}}  # EE1(b) self-efficacy not relevant to ABP (Rose, Oct 2026)
 FACULTY_MERGED = {10: 8}  # EE1(c) is covered by the faculty EE1(a) question
+
+
+def fac_for(code, fac_rows):
+    return [r for r in fac_rows if r["row"] not in FACULTY_SKIP.get(code, ())]
 
 
 def asks_faculties(r):
@@ -801,7 +832,7 @@ def master(qual, quan, fac_rows, central_sections, sr25_all):
         ("Purpose", "Central record of SR26 data requirements, owners, reporting requests, responses and evidence. Adapted from the 2025 end-year reporting master spreadsheet (V0.2) and the Sustainability 2030 updated targets (Qual and Quan worksheets)."),
         ("Status", f"DRAFT {VERSION} – {len(PILOT_FACULTIES)} faculties ({', '.join(PILOT_FACULTIES)}) and {len(CENTRAL)} central units ({', '.join(c[0] for c in CENTRAL)})."),
         ("Reporting approach", "Transition year: cover all of CY2026, distinguishing former Sustainability Plan 2030 activity from foundations and early actions after the Sustainability 2030 launch (~20 Oct 2026). Databook is the authoritative quantitative source. No target status rating (Met/Partially met/Not met) is requested in 2026 (team decision) – requests collect commentary and evidence only."),
-        ("Key dates (TBC)", f"Early engagement (existing meetings): w/c 26 Oct 2026 | Requests issued: W1 Nov (from 2 Nov) | Collection period incl. optional 1:1 meetings: 2 Nov – 15 Dec (6 weeks) | Responses and highlighted stories due: {DUE_DATE} | First review: W3 Dec | Targeted follow-up: W3–W4 Dec | Consolidated master: W4 Dec | Sustainability Reporting Review Group: ~15 Feb 2027 | VCAG: 16 Feb & ~2 Mar 2027"),
+        ("Key dates (TBC)", f"Early engagement (existing meetings): w/c 26 Oct 2026 | Requests issued: W1 Nov (from 2 Nov) | Collection period incl. optional 1:1 meetings: 2 Nov – 24 Dec (~7 weeks) | Responses and highlighted stories due: {DUE_DATE} | First review: w/c 4 Jan 2027 | Targeted follow-up: 4–15 Jan | Consolidated master: w/c 18 Jan | Governance paper deadlines: see P2 in the project workbook (placeholders from SR25)"),
         ("Tabs", "1. Requirements matrix – every S2030 qualitative indicator, owner and request\n"
                  "2. Quant coverage – every quantitative indicator checked against the Databook draft, owner and action\n"
                  "2b. Databook register – every Databook data point with columns to confirm definition, source, owner\n"
@@ -885,7 +916,7 @@ def master(qual, quan, fac_rows, central_sections, sr25_all):
             "Due date", "Reminder date", "Optional 1:1 meeting (date)", "Rows answered (auto)", "Owner confirmed rows (auto)",
             "Status", "Days overdue", "Notes / follow-up"]
     hdr_row(ws, 9, cols)
-    track = [(f"F{i+1}", "Faculty", f"{code} – {name}", len(fac_rows), request_name(code), code)
+    track = [(f"F{i+1}", "Faculty", f"{code} – {name}", len(fac_for(code, fac_rows)), request_name(code), code)
              for i, (code, name) in enumerate(PILOT_FACULTIES.items())]
     n = 0
     for code, name, _, secs in CENTRAL:
@@ -935,7 +966,7 @@ def master(qual, quan, fac_rows, central_sections, sr25_all):
 
     global LISTS
     lists = lists_sheet(wb); LISTS = lists
-    unit_tab("Faculties", "Faculties", [(c, f"{c} – {n}", fac_rows, prev_lookup(sr25_for(c)), None) for c, n in PILOT_FACULTIES.items()], True)
+    unit_tab("Faculties", "Faculties", [(c, f"{c} – {n}", fac_for(c, fac_rows), prev_lookup(sr25_for(c)), None) for c, n in PILOT_FACULTIES.items()], True)
     for code, name, _, secs in CENTRAL:
         prev = prev_lookup(sr25_for(code)) if SR25_SOURCES.get(code) else None
         unit_tab(code, name, [(label.split(" (")[0], label, rows, prev, CENTRAL_SR25_MAP[code]) for label, rows in central_sections[code] if rows], False)
@@ -985,7 +1016,8 @@ def master(qual, quan, fac_rows, central_sections, sr25_all):
         ("TR2(b) 'Documented progress of strategic initiatives, incl. Impact Accelerators' reuses the TR2(d) case-study wording and has no stakeholder in the Qual sheet – left as-is.", "TR2(b)", "TBC", "Review wording/owner", "Open"),
         ("Quantitative-only rows (no stakeholder in the Qual sheet) removed from the requirements matrix and moved to '2. Quant coverage'; Databook gaps requested in Tab 4 of the owning central unit's request.", "TR2(b); CL1(a)-(b); CL2(b); NB1(a); CE1-2; RP2; RI1(a)", "Stefanus", "Confirm owners and Databook coverage with Chris", "Open"),
         ("No target status rating requested in 2026 (Rose): rating column removed from all requests; A1 now summarises responses instead of scoring.", "All", "Director, Sustainability", "Revisit for 2027 with the new traffic-light framework", "Closed"),
-        ("Timeline updated to the team plan: requests issued W1 Nov, responses and stories due 15 Dec 2026, first review W3 Dec, follow-up W3–W4 Dec, consolidation W4 Dec. Databook figures given by 15 Dec are provisional; final figures confirmed Jan–Feb.", "All", "Stefanus", "Confirm exact issue date and SST contact email", "Open"),
+        ("Due date moved to 24 Dec 2026 (Christmas shutdown) as the Sustainability 2030 launch was pushed back (Rose). First review, follow-up and consolidation move to January 2027. Databook figures given by 24 Dec are provisional; final figures confirmed Jan–Feb.", "All", "Stefanus", "Confirm exact issue date and SST contact email", "Open"),
+        ("EE1(b) (student self-efficacy) not asked of ABP – not relevant to the faculty (Rose). Other faculties keep it.", "Faculties", "Stefanus", "Confirm whether other faculties should also drop it", "Open"),
         ("Faculty requests cut to 9 questions (SR25 sent 10) after the ABP walkthrough; all 9 faculties receive the same set.", "Faculties", "Stefanus", "Monitor burden during collection", "Closed"),
     ]
     from datetime import date
@@ -1221,7 +1253,7 @@ def main():
     print("Qual indicators:", len(qual), "| faculty rows:", len(fac_rows), "| quant rows:", len(quan))
     for code, name in PILOT_FACULTIES.items():
         s25 = sr25_for(code)
-        print(" ", request_workbook(code, name, [(f"{code} – {name}", fac_rows)], prev_lookup(s25),
+        print(" ", request_workbook(code, name, [(f"{code} – {name}", fac_for(code, fac_rows))], prev_lookup(s25),
                                     sr25_sections=s25, qual_by_row=by_row), sum(len(x[1]) for x in s25), "SR25 rows")
     for code, name, _, _ in CENTRAL:
         secs = [(l, rows) for l, rows in central_sections[code] if rows]

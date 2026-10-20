@@ -11,7 +11,9 @@ TAILORED = {
         "include innovative approaches (e.g. new or redesigned subjects, curriculum design, pedagogies, assessment or learning "
         "resources) and sustainability-focused experiential or co-curricular learning (e.g. industry or community projects, fieldwork, "
         "internships, student challenges). Include links and approximate student participation where known.",
-        "This question also covers indicator EE1(c). Melbourne Plus and the Wattle Fellowship will be collected separately – no need to report these."),
+        "This question also covers indicator EE1(c). Please note that this indicator will be addressed at the joint Associate Deans "
+        "Sustainability and Associate Deans Teaching and Learning session on 23 November 2026. Please feel free to summarise what your "
+        "faculty presented at this session - further information is welcome but not required."),
     9: ("Has your faculty piloted or trialled any approach in 2026 to understand or build students' confidence and capability "
         "to act on sustainability (sustainability self-efficacy)? If yes, briefly describe the approach, participating cohort, "
         "what was learned and next steps. If not, please respond 'none in 2026' – this is a new indicator and a nil response is useful.",
@@ -20,7 +22,7 @@ TAILORED = {
          "sustainability challenges (e.g. advising on campus energy, biodiversity, waste or buildings; applied projects; "
          "decision-support tools). Briefly describe the operational challenge, the researchers' contribution, the University team "
          "involved and the result.",
-         "We will collect Campus Living Lab Accelerator Program (CLLAP) projects separately from CI&S – please include other examples only."),
+         "Please note, we will collect case studies on Campus Living Lab Accelerator Program projects directly from project owners - no need to include these."),
     13: ("Does your faculty have any mechanism that supports ongoing collaboration between academic and professional staff on "
          "operational sustainability (e.g. a sustainability committee with mixed membership, seed funding, a coordination role or a "
          "regular forum)? If yes, briefly describe it and how often it operates. If not, please say so.",
@@ -35,7 +37,7 @@ TAILORED = {
     16: ("Please give any examples from 2026 of sustainability-related research from your faculty that has had impact beyond "
          "academia – on policy, industry, community, practice, cultural or institutional outcomes. Briefly describe the research, "
          "the partner or user, and the resulting change or influence, with links (e.g. Pursuit articles, policy submissions, reports).",
-         "We will source University-wide research metrics (e.g. SDG-mapped publications via SciVal) from MRE – publication counts are not required."),
+         "We will source University-wide research metrics (e.g. SDG-mapped publications via SciVal) from Melbourne Research and Enterprise (MRE) – publication counts are not required."),
     19: ("Please give any examples of research activity from your faculty that has contributed to a meaningful sustainability "
          "outcome: the research, stakeholders involved, pathway to impact and evidence of the outcome. These can be the examples "
          "from TR2(a) described in more detail.",
@@ -50,7 +52,7 @@ TAILORED = {
          ""),
     53: ("Please give any examples of sustainability-related living labs operating within your faculty in 2026 – their activities, "
          "who is involved (students, researchers, operational staff) and their outputs, outcomes or impact.",
-         "Please note we will approach living labs funded through the Campus Living Lab Accelerator Program (CLLAP) separately."),
+         "Please note, we will collect case studies on Campus Living Lab Accelerator Program projects directly from project owners - no need to include these."),
     54: ("Please list the key sustainability-focused communities of practice, internal networks or external partnerships active in "
          "your faculty in 2026 (name, partners, priority area), and give any examples of activity that contributed to a "
          "Sustainability 2030 outcome.",
@@ -75,17 +77,15 @@ def faculty_request(row, sr25_ref, prev_status, prev_response, original, tailor=
     req, note = TAILORED.get(row, (original, "")) if tailor else (CENTRAL_WORDING.get(row, original), "")
     who = "your faculty" if tailor else "your area"
     where = "click the ref in Column H to see it in full in Tab 3" if linked else "see Column J – click [+] above Columns I–K"
-    parts = []
-    if sr25_ref:
+    parts = [req]
+    if note:
+        parts.append(note)
+    if sr25_ref:  # end-2025 pointer goes last (Rose, Oct 2026)
         if prev_response:
-            parts.append(f"In end-2025 reporting {who} reported on the related SP2030 target {sr25_ref} "
-                         f"({where}). Please build on this rather than repeating it, focusing on what is new in 2026.")
+            parts.append(f"In end-2025 reporting {who} reported on the related SP2030 target {sr25_ref} ({where}).")
         else:
             parts.append(f"We did not receive an end-2025 response for the related SP2030 target {sr25_ref}, "
                          "so please include any relevant activity from across 2026.")
-    parts.append(req)
-    if note:
-        parts.append(note)
     return "\n\n".join(parts)
 
 
@@ -96,11 +96,11 @@ USE = {
     9: "This is a new indicator. We will use responses to establish a baseline of how (and whether) faculties are understanding student sustainability self-efficacy, and report on early pilots in the 2026 Sustainability Report. A nil response is useful to us.",
     10: "We will combine faculty examples with central Wattle Fellowship and Melbourne Plus data to report on the range and reach of sustainability-focused experiential and co-curricular learning across the University.",
     11: "We will use nominated alumni to develop short graduate profiles for the 2026 Sustainability Report (subject to consent), and record any faculty approaches to tracking graduate outcomes to inform how this indicator is measured from 2027.",
-    12: "We will report on examples of researchers helping solve the University's own operational sustainability challenges, alongside CLLAP projects reported by CI&S, and share them with operational teams to identify further collaboration.",
+    12: "We will report on examples of researchers helping solve the University's own operational sustainability challenges, alongside Campus Living Lab Accelerator Program case studies collected directly from project owners, and share them with operational teams to identify further collaboration.",
     13: "We will map existing academic–professional collaboration mechanisms across faculties to establish a baseline for this new indicator and identify models other faculties could adopt.",
     14: "We will use your assessment to describe the quality and continuity of research–operations collaboration in the 2026 report, and as baseline evidence for the interim target status assessment from 2027.",
     15: "We will use any feedback to understand whether collaboration mechanisms are working and to inform improvements. Where none has been collected, this helps us plan how to gather feedback from 2027.",
-    16: "We will collate research impact examples across faculties to show the breadth of sustainability-related research impact in the Transformational research section of the 2026 Sustainability Report, complementing University-wide metrics from MRE.",
+    16: "We will collate research impact examples across faculties to show the breadth of sustainability-related research impact in the Transformational research section of the 2026 Sustainability Report, complementing University-wide metrics from Melbourne Research and Enterprise (MRE).",
     18: "We will use institutional research output data (e.g. SDG-mapped publications via SciVal) to provide the University-wide quantitative picture of sustainability-related research in the 2026 Sustainability Report.",
     19: "We will select the strongest examples to develop as full research case studies for the 2026 Sustainability Report (we may contact you for more detail and images).",
     20: "We will report on how sustainability is being built into research systems and support across the University, and use responses to establish a baseline for this new target.",
@@ -127,7 +127,7 @@ USE = {
     49: "We will draw on the annual Modern Slavery Statement and case studies to report on the University's approach to modern slavery and human rights risks (timing to be aligned with the Statement).",
     51: "We will report on sustainability-related investment portfolio metrics and the University's compliance with related obligations (e.g. UNPRI) in the Responsible investments section of the 2026 Sustainability Report.",
     52: "We will report on the ways Indigenous knowledges inform sustainability activities across the University, and develop selected examples into case studies with appropriate permissions.",
-    53: "We will share examples of sustainability-related living labs from across the University in the 2026 Sustainability Report, alongside CLLAP projects reported by CI&S.",
+    53: "We will share examples of sustainability-related living labs from across the University in the 2026 Sustainability Report, alongside Campus Living Lab Accelerator Program case studies collected directly from project owners.",
     54: "We will report on internal engagement and partnerships contributing to Sustainability 2030 outcomes, and update our record of sustainability-focused communities of practice and contacts across the University.",
     55: "We will report on how sustainability is integrated into governance and decision-making across faculties and portfolios, and use responses as a baseline for the governance enabler from 2027.",
 }

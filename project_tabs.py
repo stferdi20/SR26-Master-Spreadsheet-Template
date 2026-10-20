@@ -7,7 +7,7 @@ Content is drawn from the 2026 Sustainability reporting approach (DRAFT Sep 2026
 from datetime import date, timedelta
 
 from openpyxl.formatting.rule import CellIsRule
-from openpyxl.styles import Alignment, Font, PatternFill
+from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
 
@@ -96,7 +96,7 @@ def project_tabs(wb):
     # ---------------- P2 Timeline, RASCI & task register (Gantt)
     ws = wb.create_sheet("P2 Timeline & RASCI")
     B.title(ws, "2026 Sustainability Report", "P2. Timeline, RASCI & task register")
-    ws["B3"] = "Indicative dates from the SR26 approach – confirm governance dates with governance offices. Gantt bars fill automatically from Start/End."
+    ws["B3"] = "Indicative dates from the SR26 approach. Governance paper deadlines drive the internal deadlines (leader review = papers due – 3 working days)."
     ws["B3"].font = Font(name="Aptos", italic=True)
     D = date
     tasks = [
@@ -120,66 +120,105 @@ def project_tabs(wb):
         ("Collection period: stakeholders prepare responses and evidence", "Initial submission", D(2026, 11, 2), D(2026, 12, 15), "Faculties, central units", "", "SST", "", "High"),
         ("SST answers questions and records clarifications centrally", "Clarifications log", D(2026, 11, 2), D(2026, 12, 15), "SST", "", "", "", "Medium"),
         ("Optional 1:1 meetings (on request)", "", D(2026, 11, 2), D(2026, 12, 15), "SST", "", "", "Data owners", "Medium"),
-        ("Responses and highlighted stories due", "15 Dec", D(2026, 12, 15), D(2026, 12, 15), "", "", "", "", "Milestone"),
-        ("First review: completeness and evidence quality", "First QA assessment", D(2026, 12, 14), D(2026, 12, 18), "SST", "", "", "", "High"),
-        ("Targeted follow-up where evidence is incomplete, ambiguous or missing (no second broad request; ask availability)", "Resolved gaps", D(2026, 12, 14), D(2026, 12, 24), "SST", "", "", "Data owners", "High"),
-        ("Consolidation: finalise master, identify unresolved gaps, prepare drafting material", "Consolidated master spreadsheet", D(2026, 12, 21), D(2026, 12, 24), "SST", "Director, Sustainability", "", "", "High"),
-        ("Drafting & data validation (Jan 2027)", None),
-        ("Commence drafting from consolidated master", "", D(2027, 1, 4), D(2027, 2, 5), "SST", "", "", "", "High"),
+        ("Responses and highlighted stories due (Christmas shutdown)", "24 Dec", D(2026, 12, 24), D(2026, 12, 24), "", "", "", "", "Milestone"),
+        ("Drafting, validation & governance papers (Jan–May 2027)", None),
+        ("First review: completeness and evidence quality", "First QA assessment", D(2027, 1, 4), D(2027, 1, 8), "SST", "", "", "", "High"),
+        ("Targeted follow-up where evidence is incomplete, ambiguous or missing (no second broad request; ask availability)", "Resolved gaps", D(2027, 1, 4), D(2027, 1, 15), "SST", "", "", "Data owners", "High"),
+        ("Consolidation: finalise master, identify unresolved gaps, prepare drafting material", "Consolidated master spreadsheet", D(2027, 1, 18), D(2027, 1, 22), "SST", "Director, Sustainability", "", "", "High"),
         ("Confirm final quantitative figures (Databook)", "", D(2027, 1, 4), D(2027, 1, 29), "SST", "", "Data owners", "", "High"),
-        ("Review responses by indicator (A1 / T1 / T2) – no target status rating in 2026", "", D(2027, 1, 18), D(2027, 2, 5), "Rose (TBC)", "Director, Sustainability", "SST", "", "High"),
-        ("Full draft + issues paper; close evidence gaps", "", D(2027, 1, 11), D(2027, 2, 5), "SST", "Director, Sustainability", "", "", "High"),
-        ("Review & governance (Feb–May 2027)", None),
-        ("VCAG papers due (Review Group findings)", "10 Feb", D(2027, 2, 10), D(2027, 2, 10), "SST", "Director, Sustainability", "", "", "Milestone"),
-        ("Sustainability Reporting Review Group", "~15 Feb (8–10 Feb TBC)", D(2027, 2, 8), D(2027, 2, 15), "Rose (convenor, TBC)", "", "", "", "Milestone"),
-        ("VCAG – notes Review Group findings", "16 Feb", D(2027, 2, 16), D(2027, 2, 16), "", "", "", "", "Milestone"),
-        ("Investment Management Committee – Responsible Investments section", "~25 Feb (papers ~18 Feb)", D(2027, 2, 18), D(2027, 2, 25), "SST", "", "", "", "Milestone"),
-        ("Full-report finalisation; Strategic Comms review; reconcile Annual Report data", "", D(2027, 2, 16), D(2027, 2, 26), "SST", "", "Strategic Comms", "", "High"),
-        ("VCAG – notes full report", "~2 Mar (papers ~25 Feb)", D(2027, 3, 2), D(2027, 3, 2), "", "", "", "", "Milestone"),
-        ("University Executive – notes report", "~25 Mar (papers ~12 Mar)", D(2027, 3, 25), D(2027, 3, 25), "", "", "", "", "Milestone"),
-        ("University Council – approves report", "~6 May (papers ~10 Apr)", D(2027, 5, 6), D(2027, 5, 6), "", "", "", "", "Milestone"),
+        ("Review responses by indicator (A1 / T1 / T2) – no target status rating in 2026", "", D(2027, 1, 18), D(2027, 1, 29), "Rose (TBC)", "Director, Sustainability", "SST", "", "High"),
+        ("Drafting from consolidated master; full draft + issues paper", "", D(2027, 1, 18), D(2027, 2, 5), "SST", "Director, Sustainability", "", "", "High"),
+        "GOV",
         ("Publication & close-out (May–Jun 2027)", None),
         ("Web build; QA, accessibility and web checks; agree analytics measures", "Before launch", D(2027, 3, 1), D(2027, 5, 28), "Comms/digital", "", "SST", "", "High"),
         ("Publish report (year-specific URL + landing page)", "June", D(2027, 6, 1), D(2027, 6, 30), "Comms/digital", "Director, Sustainability", "", "", "Milestone"),
         ("Monitor engagement; project retrospective; improvements for 2027 cycle", "", D(2027, 6, 1), D(2027, 7, 30), "SST", "", "Comms, design", "", "Medium"),
     ]
-    cols = ["Phase / key activity", "Key milestone", "Start", "End", "R", "A", "S", "C/I", "Priority", "Status"]
-    hr = 9
+    # Governance paper deadlines (placeholders: SR26 approach dates, cross-checked against SR25 actuals) – internal
+    # deadlines work back from the paper due date: leader review needs 3 working days.
+    gov = [
+        ("Sustainability Reporting Review Group", "Review findings", D(2027, 2, 15), D(2027, 2, 8), "SR26 approach (~15 Feb); SR25 n/a"),
+        ("VCAG", "Notes Review Group findings", D(2027, 2, 16), D(2027, 2, 10), "SR26 approach; SR25: papers 14 Feb, meeting 17 Feb"),
+        ("Investment Management Committee", "Responsible investments section", D(2027, 2, 25), D(2027, 2, 18), "SR26 approach (TBC)"),
+        ("VCAG", "Notes full report", D(2027, 3, 2), D(2027, 2, 25), "SR26 approach (TBC)"),
+        ("University Executive", "Notes report", D(2027, 3, 25), D(2027, 3, 12), "SR26 approach; SR25: papers 17 Mar, meeting 27 Mar"),
+        ("University Council", "Approves report", D(2027, 5, 6), D(2027, 4, 9), "SR26 approach (~10 Apr); SR25: meeting 5 May"),
+    ]
+    g0 = 5
+    ws.cell(g0 - 1, 2, "Governance paper deadlines (placeholders – confirm with governance offices; edit dates here and the Gantt updates)").font = Font(name="Aptos", bold=True, size=13, color=B.NAVY)
+    B.hdr_row(ws, g0, ["Governance body", "Purpose", "Meeting", "Papers due", "To leaders for review (papers – 3 working days)", "Start paper (papers – 10 working days)", "Source of placeholder"])
+    gref = {}
+    for k, (body, purpose, meet, papers, src) in enumerate(gov):
+        rr = g0 + 1 + k
+        vals = [body, purpose, meet, papers, f"=WORKDAY(E{rr},-3)", f"=WORKDAY(E{rr},-10)", src]
+        for i, v in enumerate(vals):
+            c = ws.cell(rr, 2 + i, v); B.body(c, B.GREY if i in (4, 5) else None)
+            if i in (2, 3, 4, 5):
+                c.number_format = "ddd d mmm yyyy"
+        gref[k] = rr
+    hr = g0 + len(gov) + 4
+    cols = ["Phase / key activity", "Key milestone", "Start", "End", "When", "R", "A", "S", "C/I", "Priority", "Status"]
     B.hdr_row(ws, hr, cols)
-    start = date(2026, 9, 7)
-    weeks = [start + timedelta(weeks=i) for i in range(48)]
+    G0 = 2 + len(cols) + 1  # first Gantt column
+    start = date(2026, 10, 5)
+    weeks = [start + timedelta(weeks=i) for i in range(40)]
     for i, w in enumerate(weeks):
-        c = ws.cell(hr, 12 + i, w); c.number_format = "d-mmm"; c.fill = B.HDR
-        c.font = Font(name="Aptos", size=8, bold=True, color="FFFFFF"); c.alignment = Alignment(text_rotation=90, horizontal="center")
-        m = ws.cell(hr - 1, 12 + i, w.strftime("%b") if i == 0 or w.month != weeks[i - 1].month else "")
-        m.font = Font(name="Aptos", bold=True)
-        ws.column_dimensions[get_column_letter(12 + i)].width = 3.2
-    r = hr + 1
+        c = ws.cell(hr, G0 + i, w); c.number_format = "d"; c.fill = B.HDR
+        c.font = Font(name="Aptos", size=9, bold=True, color="FFFFFF"); c.alignment = Alignment(horizontal="center")
+        if i == 0 or w.month != weeks[i - 1].month:
+            m = ws.cell(hr - 1, G0 + i, w.strftime("%b %Y") if w.month == 1 or i == 0 else w.strftime("%b"))
+            m.font = Font(name="Aptos", bold=True, color="FFFFFF"); m.fill = PatternFill("solid", fgColor=B.NAVY)
+        else:
+            ws.cell(hr - 1, G0 + i).fill = PatternFill("solid", fgColor=B.NAVY)
+        ws.column_dimensions[get_column_letter(G0 + i)].width = 4.2
+    ws.cell(hr - 2, G0, "Week commencing (Mon) – bars fill from Start/End; ◆ = milestone; grey = Christmas shutdown; light blue = governance paper due").font = Font(name="Aptos", italic=True, size=9)
+    rows = []
     for t in tasks:
+        if t == "GOV":
+            for k, (body, purpose, *_x) in enumerate(gov):
+                rr = gref[k]; nm = f"{body} – {purpose.lower()}"
+                rows.append((f"Prepare paper: {nm}", "Draft → leaders", f"=G{rr}", f"=F{rr}", "SST", "Director, Sustainability", "", "", "High"))
+                rows.append((f"Papers due: {nm}", "Papers due", f"=E{rr}", f"=E{rr}", "SST", "", "", "", "Milestone"))
+                rows.append((f"Meeting: {nm}", "Meeting", f"=D{rr}", f"=D{rr}", "", "", "", "", "Milestone"))
+        else:
+            rows.append(t)
+    PH = PatternFill("solid", fgColor="156082")
+    r = hr + 1
+    for t in rows:
         if t[1] is None:
-            c = ws.cell(r, 2, t[0]); c.font = Font(name="Aptos", bold=True, color="FFFFFF"); c.fill = PatternFill("solid", fgColor="156082")
-            for cc in range(3, 12 + len(weeks)):
-                ws.cell(r, cc).fill = PatternFill("solid", fgColor="156082")
+            c = ws.cell(r, 2, t[0]); c.font = Font(name="Aptos", bold=True, color="FFFFFF")
+            for cc in range(2, G0 + len(weeks)):
+                ws.cell(r, cc).fill = PH
         else:
             name, ms, s0, e0, R, A, S, CI, pr = t
-            vals = [name, ms, s0, e0, R, A, S, CI, pr, "Not yet started"]
+            when = f'=TEXT(D{r},"d mmm")&IF(E{r}<>D{r}," – "&TEXT(E{r},"d mmm"),"")'
+            vals = [name, ms, s0, e0, when, R, A, S, CI, pr, "Not yet started"]
             for i, v in enumerate(vals):
                 c = ws.cell(r, 2 + i, v); B.body(c)
                 if i in (2, 3):
-                    c.number_format = "dd/mm/yyyy"
+                    c.number_format = "dd/mm/yy"
+            ms_row = pr == "Milestone"
             for i in range(len(weeks)):
-                col = get_column_letter(12 + i)
-                ws.cell(r, 12 + i, f'=IF(AND({col}${hr}+6>=$D{r},{col}${hr}<=$E{r}),1,"")')
+                col = get_column_letter(G0 + i)
+                c = ws.cell(r, G0 + i, f'=IF(AND({col}${hr}+6>=$D{r},{col}${hr}<=$E{r}),"◆","")' if ms_row else None)
+                c.alignment = Alignment(horizontal="center"); c.font = Font(name="Aptos", bold=True, color="C00000")
+                c.border = Border(left=Side(style="hair", color="BFBFBF"))
         r += 1
     last = r - 1
-    rng = f"L{hr + 1}:{get_column_letter(11 + len(weeks))}{last}"
-    ws.conditional_formatting.add(rng, CellIsRule(operator="equal", formula=["1"], fill=PatternFill("solid", fgColor="FFC000"), font=Font(color="FFC000")))
-    B.dv_list(ws, '"Not yet started,In progress,Complete,On hold,N/A"', f"K{hr + 1}:K{last}")
-    B.widths(ws, {"A": 4, "B": 52, "C": 22, "D": 11, "E": 11, "F": 14, "G": 16, "H": 12, "I": 14, "J": 10, "K": 14})
-    ws.freeze_panes = f"D{hr + 1}"
-    # today marker
-    ws.conditional_formatting.add(f"L{hr}:{get_column_letter(11 + len(weeks))}{hr}",
-                                  CellIsRule(operator="between", formula=["TODAY()-6", "TODAY()"], fill=PatternFill("solid", fgColor="C00000")))
+    g1, gN = get_column_letter(G0), get_column_letter(G0 + len(weeks) - 1)
+    rng = f"{g1}{hr + 1}:{gN}{last}"
+    from openpyxl.formatting.rule import FormulaRule
+    bar = f'AND($K{hr + 1}<>"Milestone",$D{hr + 1}<>"",{g1}${hr}+6>=$D{hr + 1},{g1}${hr}<=$E{hr + 1})'
+    ws.conditional_formatting.add(rng, FormulaRule(formula=[f'AND({bar},$L{hr + 1}="Complete")'], fill=PatternFill("solid", fgColor="A9D18E"), stopIfTrue=True))
+    ws.conditional_formatting.add(rng, FormulaRule(formula=[bar], fill=PatternFill("solid", fgColor="4F81BD"), stopIfTrue=True))
+    shut = f'AND({g1}${hr}>=DATE(2026,12,21),{g1}${hr}<=DATE(2026,12,28))'
+    ws.conditional_formatting.add(f"{g1}{hr + 1}:{gN}{last}", FormulaRule(formula=[shut], fill=PatternFill("solid", fgColor="D9D9D9")))
+    paper = f'SUMPRODUCT(($E${g0 + 1}:$E${g0 + len(gov)}>={g1}${hr})*($E${g0 + 1}:$E${g0 + len(gov)}<={g1}${hr}+6))>0'
+    ws.conditional_formatting.add(f"{g1}{hr + 1}:{gN}{last}", FormulaRule(formula=[paper], fill=PatternFill("solid", fgColor="DDEBF7")))
+    ws.conditional_formatting.add(f"{g1}{hr}:{gN}{hr}", FormulaRule(formula=[f"AND(TODAY()>={g1}${hr},TODAY()<={g1}${hr}+6)"], fill=PatternFill("solid", fgColor="C00000")))
+    B.dv_list(ws, '"Not yet started,In progress,Complete,On hold,N/A"', f"L{hr + 1}:L{last}")
+    B.widths(ws, {"A": 2, "B": 50, "C": 20, "D": 14, "E": 14, "F": 15, "G": 15, "H": 15, "I": 12, "J": 12, "K": 11, "L": 14, "M": 2})
+    ws.freeze_panes = f"A{hr + 1}"
 
     # ---------------- P3 To do list – comms + web
     ws = wb.create_sheet("P3 To do – comms+web")

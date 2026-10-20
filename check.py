@@ -118,6 +118,8 @@ for code, rows in req_rows.items():
         cols = [rasci.area_label(l) for c in B.CENTRAL if c[0] == code for l, _ in c[3]]
         check(all(c in hdr.values() for c in cols), f"RASCI has a column for every {code} section")
     have = {ref for ref, d in codes.items() if any(d.get(c) in ("R", "A and R") for c in cols)}
+    if code in B.PILOT_FACULTIES:  # merged Faculties column: per-faculty skips (FACULTY_SKIP) still show R
+        have -= {q["ref"] for q in qual if q["row"] in B.FACULTY_SKIP.get(code, ())}
     check(set(rows) == have, f"RASCI 'R' for {code} matches its request rows" +
           ("" if set(rows) == have else f" – request only {sorted(set(rows) - have)}, RASCI only {sorted(have - set(rows))}"))
 
@@ -186,7 +188,16 @@ for f in [master_path] + req_files + glob.glob(f"output/SR26 project management 
     txt = " ".join(str(c.value) for ws in load_workbook(f) for row in ws.iter_rows() for c in row if isinstance(c.value, str))
     for phrase in ["15 January 2027", "4 December 2026", "4 Dec (TBC)", "15 Jan (TBC)", "Support meetings: January",
                    "Confirm end-2026 target status", "Target status assessment and definitions", "Target score"]:
-        check(phrase not in txt, f"{f.split('/')[-1][:30]}: no old date '{phrase}'")
+        check(not re.search(r"(?<!\d)" + re.escape(phrase), txt), f"{f.split('/')[-1][:30]}: no old date '{phrase}'")
+    for phrase in ["15 Dec", "Please build on this", "Melbourne Plus and the Wattle Fellowship will be collected", "CDSS"]:
+        if phrase in ("CDSS", "15 Dec") and "master" in f:  # version history in Read me mentions them
+            continue
+        check(not re.search(r"(?<!\d)" + re.escape(phrase), txt), f"{f.split('/')[-1][:30]}: no stale text '{phrase}'")
+abp = load_workbook(next(f for f in req_files if f.endswith(B.request_name("ABP"))))["1. Reporting template"]
+abp_refs = [abp.cell(r, 2).value for r in range(1, abp.max_row + 1)]
+check("EE1(b)" not in abp_refs, "ABP request has no EE1(b) row (Rose)")
+fee = load_workbook(next(f for f in req_files if f.endswith(B.request_name("FEIT"))))["1. Reporting template"]
+check("EE1(b)" in [fee.cell(r, 2).value for r in range(1, fee.max_row + 1)], "other faculties keep EE1(b)")
 
 # ---- report (de-duplicated)
 seen = set()
