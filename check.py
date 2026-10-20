@@ -195,9 +195,9 @@ for f in [master_path] + req_files + glob.glob(f"output/SR26 project management 
         check(not re.search(r"(?<!\d)" + re.escape(phrase), txt), f"{f.split('/')[-1][:30]}: no stale text '{phrase}'")
 abp = load_workbook(next(f for f in req_files if f.endswith(B.request_name("ABP"))))["1. Reporting template"]
 abp_refs = [abp.cell(r, 2).value for r in range(1, abp.max_row + 1)]
-check("EE1(b)" not in abp_refs, "ABP request has no EE1(b) row (Rose)")
+check("EE1(b)" not in abp_refs, "ABP request has no EE1(b) row")
 fee = load_workbook(next(f for f in req_files if f.endswith(B.request_name("FEIT"))))["1. Reporting template"]
-check("EE1(b)" in [fee.cell(r, 2).value for r in range(1, fee.max_row + 1)], "other faculties keep EE1(b)")
+check("EE1(b)" not in [fee.cell(r, 2).value for r in range(1, fee.max_row + 1)], "no faculty is asked EE1(b)")
 
 # ---- report (de-duplicated)
 seen = set()

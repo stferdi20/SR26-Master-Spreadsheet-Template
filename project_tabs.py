@@ -146,7 +146,7 @@ def project_tabs(wb):
     ]
     g0 = 5
     ws.cell(g0 - 1, 2, "Governance paper deadlines (placeholders – confirm with governance offices; edit dates here and the Gantt updates)").font = Font(name="Aptos", bold=True, size=13, color=B.NAVY)
-    B.hdr_row(ws, g0, ["Governance body", "Purpose", "Meeting", "Papers due", "To leaders for review (papers – 3 working days)", "Start paper (papers – 10 working days)", "Source of placeholder"])
+    B.hdr_row(ws, g0, ["Governance body", "Purpose", "Meeting", "Papers due", "To leaders for review (papers – 3 working days)", "Begin drafting (proposed: papers – 10 working days)", "Source of placeholder"])
     gref = {}
     for k, (body, purpose, meet, papers, src) in enumerate(gov):
         rr = g0 + 1 + k
@@ -177,7 +177,7 @@ def project_tabs(wb):
         if t == "GOV":
             for k, (body, purpose, *_x) in enumerate(gov):
                 rr = gref[k]; nm = f"{body} – {purpose.lower()}"
-                rows.append((f"Prepare paper: {nm}", "Draft → leaders", f"=G{rr}", f"=F{rr}", "SST", "Director, Sustainability", "", "", "High"))
+                rows.append((f"Draft paper: {nm}", "Begin drafting → leaders", f"=G{rr}", f"=F{rr}", "SST", "Director, Sustainability", "", "", "High"))
                 rows.append((f"Papers due: {nm}", "Papers due", f"=E{rr}", f"=E{rr}", "SST", "", "", "", "Milestone"))
                 rows.append((f"Meeting: {nm}", "Meeting", f"=D{rr}", f"=D{rr}", "", "", "", "", "Milestone"))
         else:

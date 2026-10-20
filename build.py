@@ -27,7 +27,7 @@ SRC = ROOT / "source"
 OUT = ROOT / "output"
 
 # ---------------------------------------------------------------- settings
-VERSION = "v0.23"  # bump on every revision; appears in file names and Read me
+VERSION = "v0.24"  # bump on every revision; appears in file names and Read me
 VERSION_HISTORY = [
     ("v0.1", "First draft: requirements matrix, pilot faculty and central-unit requests, tracker, evidence register."),
     ("v0.2", "SR25-style faculty wording and 'How SST will use'; scoring/T1/T2 formulas; Legal & Risk; project tabs; linked SR25 responses tab."),
@@ -52,6 +52,8 @@ VERSION_HISTORY = [
     ("v0.21", "All 9 faculties: FAM, FEIT, FoE, MLS and MDHS added (same 9 questions, own SR25 responses, linked into the master)."),
     ("v0.22", "CDSS references unified to the Sustainability Strategy team (SST) – same team; MRE section label clarified (MBI = Melbourne Biodiversity Institute, NB2(a) nature footprint)."),
     ("v0.23", "Rose feedback: due 24 Dec 2026 (Christmas shutdown); end-2025 pointer moved to the end of each request and 'build on this' sentence removed; EE1(a) notes the 23 Nov joint ADs session, Melbourne Plus/Wattle note removed; EE1(b) dropped for ABP only; new CLLAP wording; MRE spelled out; P2 Gantt rebuilt with governance paper deadlines (SR25 placeholders, -3 days leader review); University of Melbourne navy banner and logo on all tabs."),
+    ("v0.24", "EE1(b) removed from all faculty requests (8 faculty questions); P2 'Start paper' renamed 'Begin drafting (proposed)'."),
+    ("v0.24", "P2: 'Start paper' renamed 'Begin drafting (proposed)'."),
 ]
 # Team timeline (Oct 2026): early engagement w/c 26 Oct; requests issued W1 Nov; collection to 24 Dec (Christmas shutdown, Rose);
 # first review w/c 4 Jan 2027; targeted follow-up 4–15 Jan; consolidated master w/c 18 Jan.
@@ -300,8 +302,8 @@ EXCLUSIVE = {11: "SaSS",                      # EE1(d) alumni
              27: "AC&M", 29: "AC&M",          # CL2(a), CL2(c) climate communications / mapping
              13: "MRE", 14: "MRE", 15: "MRE",  # TR1(b), (c), (d) academic–professional collaboration mechanisms
              20: "MRE", 22: "MRE", 23: "MRE"}  # TR3(a), (c), (d) research systems, culture, assessment
-FACULTY_REMOVED = {55}  # EN1(d) governance – not asked of faculties (central units keep it)
-FACULTY_SKIP = {"ABP": {9}}  # EE1(b) self-efficacy not relevant to ABP (Rose, Oct 2026)
+FACULTY_REMOVED = {55, 9}  # EN1(d) governance – not asked of faculties (central units keep it); EE1(b) dropped for all faculties (v0.24)
+FACULTY_SKIP = {}  # per-faculty exclusions, e.g. {"ABP": {row}}
 FACULTY_MERGED = {10: 8}  # EE1(c) is covered by the faculty EE1(a) question
 
 
@@ -1017,8 +1019,8 @@ def master(qual, quan, fac_rows, central_sections, sr25_all):
         ("Quantitative-only rows (no stakeholder in the Qual sheet) removed from the requirements matrix and moved to '2. Quant coverage'; Databook gaps requested in Tab 4 of the owning central unit's request.", "TR2(b); CL1(a)-(b); CL2(b); NB1(a); CE1-2; RP2; RI1(a)", "Stefanus", "Confirm owners and Databook coverage with Chris", "Open"),
         ("No target status rating requested in 2026 (Rose): rating column removed from all requests; A1 now summarises responses instead of scoring.", "All", "Director, Sustainability", "Revisit for 2027 with the new traffic-light framework", "Closed"),
         ("Due date moved to 24 Dec 2026 (Christmas shutdown) as the Sustainability 2030 launch was pushed back (Rose). First review, follow-up and consolidation move to January 2027. Databook figures given by 24 Dec are provisional; final figures confirmed Jan–Feb.", "All", "Stefanus", "Confirm exact issue date and SST contact email", "Open"),
-        ("EE1(b) (student self-efficacy) not asked of ABP – not relevant to the faculty (Rose). Other faculties keep it.", "Faculties", "Stefanus", "Confirm whether other faculties should also drop it", "Open"),
-        ("Faculty requests cut to 9 questions (SR25 sent 10) after the ABP walkthrough; all 9 faculties receive the same set.", "Faculties", "Stefanus", "Monitor burden during collection", "Closed"),
+        ("EE1(b) (student self-efficacy) removed from all faculty requests (Rose feedback on ABP, extended to all faculties). No unit is now asked EE1(b) in 2026.", "Faculties", "Stefanus", "Confirm whether to collect centrally (e.g. Sustainability Strengths Compass project) or leave unreported for 2026", "Open"),
+        ("Faculty requests cut to 8 questions (SR25 sent 10) after the ABP walkthrough and Rose feedback (EE1(b) removed); all 9 faculties receive the same set.", "Faculties", "Stefanus", "Monitor burden during collection", "Closed"),
     ]
     from datetime import date
     for k, it in enumerate(issues):
