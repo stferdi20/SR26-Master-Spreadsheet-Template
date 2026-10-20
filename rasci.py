@@ -159,7 +159,7 @@ def rasci_tab(wb, qual, coverage, faculties, central):
     B.dv_list(ws, '"' + ",".join(c for c, _ in CODES) + '"', area)
     for code, colour in FILL.items():
         ws.conditional_formatting.add(area, FormulaRule(formula=[f'EXACT({get_column_letter(first)}{top},"{code}")'],
-                                                        fill=PatternFill("solid", fgColor=colour)))
+                                                        fill=PatternFill("solid", fgColor=colour, bgColor=colour)))
 
     # ---- legend + summary (as SR25 rows 50–61)
     r = bot + 2

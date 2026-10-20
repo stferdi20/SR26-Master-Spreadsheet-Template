@@ -242,14 +242,14 @@ def project_tabs(wb):
     last = r - 1
     rng = f"{g1}{HR + 1}:{gN}{last}"
     bar = f'AND($I{HR + 1}<>"Milestone",$D{HR + 1}<>"",{g1}${HR}+6>=$D{HR + 1},{g1}${HR}<=$E{HR + 1})'
-    ws.conditional_formatting.add(rng, FormulaRule(formula=[f'AND({bar},$J{HR + 1}="Complete")'], fill=PatternFill("solid", fgColor="A9D18E"), stopIfTrue=True))
-    ws.conditional_formatting.add(rng, FormulaRule(formula=[bar], fill=PatternFill("solid", fgColor="4F81BD"), stopIfTrue=True))
+    ws.conditional_formatting.add(rng, FormulaRule(formula=[f'AND({bar},$J{HR + 1}="Complete")'], fill=PatternFill("solid", fgColor="A9D18E", bgColor="A9D18E"), stopIfTrue=True))
+    ws.conditional_formatting.add(rng, FormulaRule(formula=[bar], fill=PatternFill("solid", fgColor="4F81BD", bgColor="4F81BD"), stopIfTrue=True))
     shut = f'AND({g1}${HR}>=DATE(2026,12,21),{g1}${HR}<=DATE(2026,12,28))'
-    ws.conditional_formatting.add(rng, FormulaRule(formula=[shut], fill=PatternFill("solid", fgColor="D9D9D9")))
+    ws.conditional_formatting.add(rng, FormulaRule(formula=[shut], fill=PatternFill("solid", fgColor="D9D9D9", bgColor="D9D9D9")))
     E_ = f"{q(GOVN)}!$E${g0 + 1}:$E${g0 + len(gov)}"
     paper = f'SUMPRODUCT(({E_}>={g1}${HR})*({E_}<={g1}${HR}+6))>0'
-    ws.conditional_formatting.add(rng, FormulaRule(formula=[paper], fill=PatternFill("solid", fgColor="DDEBF7")))
-    ws.conditional_formatting.add(f"{g1}{HR}:{gN}{HR}", FormulaRule(formula=[f"AND(TODAY()>={g1}${HR},TODAY()<={g1}${HR}+6)"], fill=PatternFill("solid", fgColor="C00000")))
+    ws.conditional_formatting.add(rng, FormulaRule(formula=[paper], fill=PatternFill("solid", fgColor="DDEBF7", bgColor="DDEBF7")))
+    ws.conditional_formatting.add(f"{g1}{HR}:{gN}{HR}", FormulaRule(formula=[f"AND(TODAY()>={g1}${HR},TODAY()<={g1}${HR}+6)"], fill=PatternFill("solid", fgColor="C00000", bgColor="C00000")))
     B.dv_list(ws, '"Not yet started,In progress,Complete,On hold,N/A"', f"J{HR + 1}:J{last}")
     B.widths(ws, {"A": 2, "B": 50, "C": 20, "D": 10, "E": 10, "F": 15, "G": 18, "H": 18, "I": 10, "J": 13, "K": 2})
     ws.freeze_panes = f"{get_column_letter(G0)}{HR + 1}"   # activity + dates stay visible while scrolling the weeks
@@ -331,7 +331,7 @@ def project_tabs(wb):
     area = f"{get_column_letter(C0)}{HR + 1}:{get_column_letter(C0 + len(team) - 1)}{last}"
     B.dv_list(ws, '"A,R,A and R,S,C,I"', area)
     for code, colr in (("A and R", "1F4E79"), ("A", "2F75B5"), ("R", "9BC2E6"), ("S", "C6E0B4"), ("C", "FFE699"), ("I", "EDEDED")):
-        ws.conditional_formatting.add(area, CellIsRule(operator="equal", formula=[f'"{code}"'], fill=PatternFill("solid", fgColor=colr),
+        ws.conditional_formatting.add(area, CellIsRule(operator="equal", formula=[f'"{code}"'], fill=PatternFill("solid", fgColor=colr, bgColor=colr),
                                                        font=Font(bold=True, color="FFFFFF" if code in ("A and R", "A") else "000000"), stopIfTrue=True))
     # SR25-style counts under the matrix
     r = last + 2
