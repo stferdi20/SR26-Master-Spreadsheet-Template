@@ -88,7 +88,7 @@ def project_tabs(wb):
         ]),
         ("Decisions required (from SR26 approach)", [
             ("1. Transition-year model", "Director, Sustainability – Approved (internal traffic lights: sub-decision)"),
-            ("2. Evidence & engagement model", "Director, Sustainability – Pending (awaiting Stefanus' WIP)"),
+            ("2. Evidence & engagement model", "Director, Sustainability – Pending (awaiting Rose's WIP)"),
             ("3. Assurance & governance pathway", "Director, Sustainability – Closed"),
             ("4. Modern slavery timeline alignment", "Director, Sustainability (and Head of Procurement) – Open, watch item"),
         ]),
@@ -100,12 +100,12 @@ def project_tabs(wb):
         ("Project set-up (Sep–Oct 2026)", None),
         ("Confirm scope, reporting model, governance pathway and decisions", "Decision log", D(2026, 9, 14), D(2026, 10, 16), "SST", "Director, Sustainability", "", "VCAG (I)", "High"),
         ("Project charter, schedule, RASCI, decision log, issues register", "Approved by Oct", D(2026, 9, 28), D(2026, 10, 23), "SST", "Director, Sustainability", "", "Comms, design", "High"),
-        ("Map refreshed targets/indicators to Databook, systems, owners", "Requirements matrix", D(2026, 9, 21), D(2026, 10, 16), "Stefanus", "Gerard Healey", "Rose", "Data owners", "High"),
-        ("Confirm stakeholder structure (CGOP/CDEP) and owners (Gerard: resilience, estate)", "Stakeholder map", D(2026, 10, 5), D(2026, 10, 16), "Stefanus", "Gerard Healey", "", "", "High"),
-        ("Test request templates (ABP walkthrough) and Teams workbook links", "Templates and links tested", D(2026, 10, 12), D(2026, 10, 30), "Stefanus", "Gerard Healey", "", "ADs Sustainability", "High"),
+        ("Map refreshed targets/indicators to Databook, systems, owners", "Requirements matrix", D(2026, 9, 21), D(2026, 10, 16), "Rose", "Gerard Healey", "Rose", "Data owners", "High"),
+        ("Confirm stakeholder structure (CGOP/CDEP) and owners (Gerard: resilience, estate)", "Stakeholder map", D(2026, 10, 5), D(2026, 10, 16), "Rose", "Gerard Healey", "", "", "High"),
+        ("Test request templates (ABP walkthrough) and Teams workbook links", "Templates and links tested", D(2026, 10, 12), D(2026, 10, 30), "Rose", "Gerard Healey", "", "ADs Sustainability", "High"),
         ("Approve Review Group criteria, decision rights, escalation pathway", "Before collection", D(2026, 10, 5), D(2026, 10, 30), "SST", "Director, Sustainability", "", "Review Group", "Medium"),
         ("Process design & launch (Oct 2026)", None),
-        ("Finalise templates and evidence register", "Templates final", D(2026, 10, 19), D(2026, 10, 30), "Stefanus", "Gerard Healey", "", "", "High"),
+        ("Finalise templates and evidence register", "Templates final", D(2026, 10, 19), D(2026, 10, 30), "Rose", "Gerard Healey", "", "", "High"),
         ("Coordinate with University Annual Report team (dependency map)", "Shared data map", D(2026, 10, 5), D(2026, 10, 30), "SST", "Director, Sustainability", "", "Annual Report team", "High"),
         ("Convene Strategic Comms, digital & design; agree comms RASCI", "Kick-off", D(2026, 10, 5), D(2026, 10, 23), "SST", "Director, Sustainability", "Strategic Comms", "Design, digital", "High"),
         ("Sustainability 2030 launch", "~20 Oct (TBC)", D(2026, 10, 20), D(2026, 10, 20), "", "", "", "", "Milestone"),
@@ -263,7 +263,6 @@ def project_tabs(wb):
     ws["B3"].font = Font(name="Aptos", italic=True)
     team = [  # (group, column header, contact, match keywords)
         ("SST", "SST (team)", "Sustainability Strategy team", ["SST"]),
-        ("SST", "Stefanus", "Stefanus", ["Stefanus"]),
         ("SST", "Rose", "Rose Hawkins", ["Rose"]),
         ("Leadership", "Gerard Healey", "Gerard Healey", ["Gerard"]),
         ("Leadership", "Director, Sustainability", "Director", ["Director"]),

@@ -1098,26 +1098,7 @@ def master(qual, quan, fac_rows, central_sections, sr25_all):
     ws = wb.create_sheet("Issues log")
     title(ws, "SR26 sustainability reporting", "Issues log")
     hdr_row(ws, 4, ["#", "Date raised", "Issue / question", "Impact", "Ref / unit", "Owner", "Proposed action", "Status"])
-    issues = [
-        ("Climate resilience maturity (CL3(a)) and Estate & infrastructure indicators – confirm owner and request with Gerard.", "CL3(a); EI1(a)–(d)", "Stefanus", "Meet Gerard", "Open"),
-        ("Confirm whether CGOP and CDEP structures have changed since the 2025 master spreadsheet stakeholder mapping.", "Stakeholder map", "Stefanus", "Confirm with team", "Open"),
-        ("Business Services split into CIOG (AI) and ESG (nature & biodiversity, waste & circular economy, part of quant. climate leadership) – confirm contacts.", "CIOG; ESG", "TBC", "Confirm contacts", "Open"),
-        ("Procurement sits with CFOG (RP1(a) procurement case studies routed to CFOG – Procurement although the Qual sheet names no stakeholder); estate planning centralised in CI&S – requests issued centrally, not to faculties.", "CFOG; CI&S", "—", "Noted", "Closed"),
-        ("Chancellery units reported separately, as SR25: AC&M, MRE, GCE, Education, SaSS and Indigenous each have their own request and master tab. Alumni (EE1(d)) asked of SaSS only.", "Stakeholder map", "Stefanus", "Confirm contacts", "Closed"),
-        ("Faculty requests cut down after ABP walkthrough: EE1(a)+(c) merged; CL2(a)/(c) to AC&M only; TR1(b)–(d) and TR3(a)/(c)/(d) to MRE only; EN1(d) not asked of faculties; EE1(d) to SaSS only. Wattle Fellowship to be asked directly (not tracked in master).", "Faculties", "Stefanus", "Confirm with team; apply to other faculties", "Open"),
-        ("Legal & Risk asked for climate resilience maturity CL3(a), following SR25 (8a(i)/(ii): University Risk 16 Climate Change; flood emergency response plans). CL3(a) is also with CI&S (Gerard) – agree who leads.", "CL3(a); L&R; CI&S", "Stefanus", "Confirm with Gerard", "Open"),
-        ("TR2(b) 'Documented progress of strategic initiatives, incl. Impact Accelerators' reuses the TR2(d) case-study wording and has no stakeholder in the Qual sheet – left as-is.", "TR2(b)", "TBC", "Review wording/owner", "Open"),
-        ("Quantitative-only rows (no stakeholder in the Qual sheet) removed from the requirements matrix and moved to '2. Quant coverage'; Databook gaps requested in Tab 4 of the owning central unit's request.", "TR2(b); CL1(a)-(b); CL2(b); NB1(a); CE1-2; RP2; RI1(a)", "Stefanus", "Confirm owners and Databook coverage with Chris", "Open"),
-        ("No target status rating requested in 2026 (Rose): rating column removed from all requests; A1 now summarises responses instead of scoring.", "All", "Director, Sustainability", "Revisit for 2027 with the new traffic-light framework", "Closed"),
-        ("NB2(a) baseline nature footprint (Melbourne Biodiversity Institute) not requested for now – MBI skipped and removed from the MRE request.", "MRE", "Stefanus", "Decide later how to collect from MBI (August)", "Open"),
-        ("CL2(a) removed from AC&M (Rose) – no unit is now asked CL2(a) in 2026.", "AC&M", "Stefanus", "Decide later: other owner or leave unreported", "Open"),
-        ("TR3(b) removed from CFOG (Rose).", "CFOG", "Stefanus", "None – MRE covers TR3 University-wide", "Closed"),
-        ("'Data owner confirms' (Yes/No) and 'Confirmed by' columns removed from all requests (Rose). Comms to ask that responses are returned once reviewed and confirmed by the most senior person in the faculty/portfolio; Column O records the contact closest to the data.", "All", "Stefanus", "Add to request comms", "Open"),
-        ("After handover, wording edits are made in the master's Column F – each request file's Column F pulls the wording from the master (keep the master in the same folder). Fill in 'Reporting request TBC' cells the same way before issue.", "All", "Rose", "Fill TBC requests before issue", "Open"),
-        ("Due date moved to 24 Dec 2026 (Christmas shutdown) as the Sustainability 2030 launch was pushed back (Rose). First review, follow-up and consolidation move to January 2027. Databook figures given by 24 Dec are provisional; final figures confirmed Jan–Feb.", "All", "Stefanus", "Confirm exact issue date and SST contact email", "Open"),
-        ("EE1(b) (student self-efficacy) removed from all faculty requests (Rose feedback on ABP, extended to all faculties). No unit is now asked EE1(b) in 2026.", "Faculties", "Stefanus", "Confirm whether to collect centrally (e.g. Sustainability Strengths Compass project) or leave unreported for 2026", "Open"),
-        ("Faculty requests cut to 8 questions (SR25 sent 10) after the ABP walkthrough and Rose feedback (EE1(b) removed); all 9 faculties receive the same set.", "Faculties", "Stefanus", "Monitor burden during collection", "Closed"),
-    ]
+    issues = []  # fresh log for the handover (earlier items closed out)
     from datetime import date
     for k, it in enumerate(issues):
         vals = [k + 1, date(2026, 10, 5), it[0], ""] + list(it[1:])  # Impact column as SR25 issues log
